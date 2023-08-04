@@ -24,9 +24,10 @@ fn main(
     let cRow = group_id.y; 
     let cCol = group_id.x;
 
-    let totalResultsBlocktile = {{ BM * BN }}u;
-    let numThreadsBlocktile = totalResultsBlocktile / {{ TM * TN }}u;
+    let resultsPerBlock = {{ BM * BN }}u;
+    let threadsPerBlock = resultsPerBlock / {{ TM * TN }}u;
 
+    // BN/TN are the number of threads to span a column
     let threadCol = local_id.x % {{ BN / TN }}u;
     let threadRow = local_id.x / {{ BN / TN }}u;
 
@@ -34,29 +35,26 @@ fn main(
     var bIdx = cCol * {{ BN }}u;                        
     var cIdx = cRow * {{ BM }}u * N + cCol * {{ BN }}u; 
 
-    let innerColA = local_id.x % {{ BK }}u; // warp-level GMEM coalescing
-    let innerRowA = local_id.x / {{ BK }}u;
+    let tileColA = local_id.x % {{ BK }}u; 
+    let tileRowA = local_id.x / {{ BK }}u;
+    let strideA = threadsPerBlock / {{ BK }}u;
 
-    // calculates the number of rows of As that are being loaded in a single step
-    // by a single block
-    let strideA = numThreadsBlocktile / {{ BK }}u;
-
-    let innerColB = local_id.x % {{ BN }}u; // warp-level GMEM coalescing
-    let innerRowB = local_id.x / {{ BN }}u;
-    // for both As and Bs we want each load to span the full column-width, for
-    // better GMEM coalescing (as opposed to spanning full row-width and iterating
-    // across columns)
-    let strideB = numThreadsBlocktile / {{ BN }}u;
+    let tileColB = local_id.x % {{ BN }}u; 
+    let tileRowB = local_id.x / {{ BN }}u;
+    let strideB = threadsPerBlock / {{ BN }}u;
 
     var threadResults = array<f32, {{ TM * TN }}u>();
+
     var regM = array<f32, {{ TM }}u>();
     var regN = array<f32, {{ TN }}u>();
+
     for (var bkIdx = 0u; bkIdx < K; bkIdx += {{ BK }}u) {
+        //Each thread loads multiple elements from A and B
         for (var loadOffset = 0u; loadOffset < {{ BM }}u; loadOffset += strideA) {
-            As[(innerRowA + loadOffset) * {{ BK }}u + innerColA] = A[aIdx + (innerRowA + loadOffset) * K + innerColA];
+            As[(tileRowA + loadOffset) * {{ BK }}u + tileColA] = A[aIdx + (tileRowA + loadOffset) * K + tileColA];
         }
         for (var loadOffset = 0u; loadOffset < {{ BK }}u; loadOffset += strideB) {
-            Bs[(innerRowB + loadOffset) * {{ BN }}u + innerColB] = B[bIdx + (innerRowB + loadOffset) * N + innerColB];
+            Bs[(tileRowB + loadOffset) * {{ BN }}u + tileColB] = B[bIdx + (tileRowB + loadOffset) * N + tileColB];
         }
         workgroupBarrier();
 

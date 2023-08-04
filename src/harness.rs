@@ -31,35 +31,47 @@ async fn check(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
     pipeline: &wgpu::ComputePipeline,
-    workgroup_count: &WorkgroupCount,
+    wgc: &WorkgroupCount,
     dims: (usize, usize, usize),
     quantized: bool,
 ) {
     let (M, N, K) = dims;
 
-    let (A, A_cpu) = rand_gpu_buffer::<f32>(&device, (M, K), true);
+    let (A, A_cpu) = rand_gpu_buffer::<f32>(&device, (M, K), true, false);
 
     let (B, B_cpu) = if quantized {
         let (B, B_cpu) = rand_quantized_gpu_buffer::<f32>(&device, (K, N), true);
         let b_dequant = sint8_dequantize(&B_cpu.unwrap(), ABSMAX, K, N);
         (B, Some(b_dequant))
     } else {
-        rand_gpu_buffer::<f32>(&device, (K, N), true)
+        rand_gpu_buffer::<f32>(&device, (K, N), true, false)
     };
 
-    /*
-    println!("A: {:?}\n", &A_cpu);
-    println!("B: {:?}\n", &B_cpu);
-    */
-
-    let (C, C_cpu) = rand_gpu_buffer::<f32>(&device, (M, N), true);
+    let (C, C_cpu) = empty_buffer::<f32>(&device, (M, N), true);
     let mut C_cpu = C_cpu.unwrap();
 
     mm_ref(&A_cpu.unwrap(), &B_cpu.unwrap(), &mut C_cpu, dims);
 
-    let mm = mm(&device, &pipeline, &A, &B, &C, &workgroup_count);
-    queue.submit(vec![mm]);
-    let gpu_out = to_cpu(&C, &device, &queue).await;
+    let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+        label: None,
+        layout: &pipeline.get_bind_group_layout(0),
+        entries: &[
+            wgpu::BindGroupEntry {
+                binding: 0,
+                resource: A.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 1,
+                resource: B.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 2,
+                resource: C.as_entire_binding(),
+            },
+        ],
+    });
+
+    let (gpu_out, _) = mm(&device, &queue, &pipeline, &bind_group, &wgc, 1, &C).await;
 
     let mut mae = 0.0;
     for i in 0..M * N {
@@ -68,10 +80,6 @@ async fn check(
             mae = diff;
         }
     }
-    /*
-    println!("GPU: {:?}\n", &gpu_out);
-    println!("CPU: {:?}", &C_cpu);
-    */
     println!(
         "GPU\n{:?}\n...\n{:?}",
         &gpu_out[..16],
@@ -91,11 +99,23 @@ async fn gpu_handle() -> (wgpu::Device, wgpu::Queue) {
         backends,
         ..Default::default()
     });
-    let adapter = wgpu::util::initialize_adapter_from_env_or_default(&instance, backends, None)
+    let limits = wgpu::Limits {
+        max_compute_invocations_per_workgroup: 1024,
+        ..wgpu::Limits::default()
+    };
+
+    let adapter = wgpu::util::initialize_adapter_from_env_or_default(&instance, None)
         .await
         .expect("No GPU found given preference");
     adapter
-        .request_device(&wgpu::DeviceDescriptor::default(), None)
+        .request_device(
+            &wgpu::DeviceDescriptor {
+                label: None,
+                features: wgpu::Features::empty(),
+                limits,
+            },
+            None,
+        )
         .await
         .expect("Could not create adapter for GPU device")
 }
@@ -144,10 +164,34 @@ where
     }
 }
 
+fn empty_buffer<F: Float + bytemuck::Pod + AsPrimitive<i32> + Debug>(
+    device: &wgpu::Device,
+    dims: (usize, usize),
+    return_cpu: bool,
+) -> (wgpu::Buffer, Option<Vec<F>>)
+where
+    Standard: Distribution<F>,
+    F: SampleUniform,
+{
+    let (M, N) = dims;
+    let data = vec![F::zero(); M * N];
+    let gpu_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: None,
+        contents: bytemuck::cast_slice(&data),
+        usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
+    });
+    if return_cpu {
+        (gpu_buffer, Some(data))
+    } else {
+        (gpu_buffer, None)
+    }
+}
+
 fn rand_gpu_buffer<F: Float + bytemuck::Pod + AsPrimitive<i32> + Debug>(
     device: &wgpu::Device,
     dims: (usize, usize),
     return_cpu: bool,
+    readable: bool,
 ) -> (wgpu::Buffer, Option<Vec<F>>)
 where
     Standard: Distribution<F>,
@@ -158,7 +202,11 @@ where
     let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: None,
         contents: bytemuck::cast_slice(&data),
-        usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
+        usage: if readable {
+            wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC
+        } else {
+            wgpu::BufferUsages::STORAGE
+        },
     });
     if return_cpu {
         (buffer, Some(data))
@@ -200,90 +248,75 @@ pub async fn test_harness(
     )
     .await;
 
-    let (A, _) = rand_gpu_buffer::<f32>(&device, (M, K), false);
+    let (A, _) = rand_gpu_buffer::<f32>(&device, (M, K), false, false);
     let B = if quantize_b {
         rand_quantized_gpu_buffer::<f32>(&device, (K, N), false).0
     } else {
-        rand_gpu_buffer::<f32>(&device, (K, N), false).0
+        rand_gpu_buffer::<f32>(&device, (K, N), false, false).0
     };
-    let (C, _) = rand_gpu_buffer::<f32>(&device, (M, N), false);
+    let (C, _) = rand_gpu_buffer::<f32>(&device, (M, N), false, true);
+
+    let bind_group_entries = [
+        wgpu::BindGroupEntry {
+            binding: 0,
+            resource: A.as_entire_binding(),
+        },
+        wgpu::BindGroupEntry {
+            binding: 1,
+            resource: B.as_entire_binding(),
+        },
+        wgpu::BindGroupEntry {
+            binding: 2,
+            resource: C.as_entire_binding(),
+        },
+    ];
+
+    let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+        label: None,
+        layout: &pipeline.get_bind_group_layout(0),
+        entries: &bind_group_entries,
+    });
+
+    let wgc = workload.count();
 
     //warmup
-    queue.submit(vec![
-        mm(&device, &pipeline, &A, &B, &C, &workload.count()),
-        mm(&device, &pipeline, &C, &B, &A, &workload.count()),
-        mm(&device, &pipeline, &A, &C, &B, &workload.count()),
-        mm(&device, &pipeline, &B, &A, &C, &workload.count()),
-        mm(&device, &pipeline, &A, &B, &C, &workload.count()),
-        mm(&device, &pipeline, &C, &B, &A, &workload.count()),
-        mm(&device, &pipeline, &A, &C, &B, &workload.count()),
-        mm(&device, &pipeline, &B, &A, &C, &workload.count()),
-    ]);
+    let N_WARMUP = 5;
+    mm(&device, &queue, &pipeline, &bind_group, &wgc, N_WARMUP, &C).await;
 
-    let _warmup_res = to_cpu(&C, &device, &queue).await;
-
-    let start = Instant::now();
-    queue.submit(vec![
-        mm(&device, &pipeline, &A, &B, &C, &workload.count()),
-        mm(&device, &pipeline, &C, &B, &A, &workload.count()),
-        mm(&device, &pipeline, &A, &C, &B, &workload.count()),
-        mm(&device, &pipeline, &B, &A, &C, &workload.count()),
-        mm(&device, &pipeline, &A, &B, &C, &workload.count()),
-        mm(&device, &pipeline, &C, &B, &A, &workload.count()),
-        mm(&device, &pipeline, &A, &C, &B, &workload.count()),
-        mm(&device, &pipeline, &B, &A, &C, &workload.count()),
-        mm(&device, &pipeline, &A, &B, &C, &workload.count()),
-        mm(&device, &pipeline, &B, &A, &C, &workload.count()),
-    ]);
-
-    let _result = to_cpu(&C, &device, &queue).await;
-
-    let elapsed = start.elapsed();
-
-    let nanos = elapsed.as_nanos();
+    let N_REPEATS = 10;
+    let (_, nanos) = mm(&device, &queue, &pipeline, &bind_group, &wgc, N_REPEATS, &C).await;
     println!("{} ns", nanos);
-    let flops = M * N * K * 2 * 10;
+    let flops = M * N * K * 2 * N_REPEATS;
     let gflops = (flops as f64 / 1e9) / (nanos as f64 / 1e9);
     println!("{} GFLOPS", gflops);
 }
 
-fn mm(
+async fn mm(
     device: &wgpu::Device,
+    queue: &wgpu::Queue,
     pipeline: &wgpu::ComputePipeline,
-    A: &wgpu::Buffer,
-    B: &wgpu::Buffer,
-    C: &wgpu::Buffer,
+    bind_group: &wgpu::BindGroup,
     workgroup_count: &WorkgroupCount,
-) -> wgpu::CommandBuffer {
+    N_REPEATS: usize,
+    readback: &wgpu::Buffer,
+) -> (Vec<f32>, u128) {
     let mut encoder =
         device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
-    let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-        label: None,
-        layout: &pipeline.get_bind_group_layout(0),
-        entries: &[
-            wgpu::BindGroupEntry {
-                binding: 0,
-                resource: A.as_entire_binding(),
-            },
-            wgpu::BindGroupEntry {
-                binding: 1,
-                resource: B.as_entire_binding(),
-            },
-            wgpu::BindGroupEntry {
-                binding: 2,
-                resource: C.as_entire_binding(),
-            },
-        ],
-    });
-
     {
         let mut cpass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor { label: None });
-        cpass.set_pipeline(&pipeline);
-        cpass.set_bind_group(0, &bind_group, &[]);
+        for _ in 0..N_REPEATS {
+            cpass.set_pipeline(&pipeline);
+            cpass.set_bind_group(0, &bind_group, &[]);
 
-        cpass.dispatch_workgroups(workgroup_count.0, workgroup_count.1, workgroup_count.2);
+            cpass.dispatch_workgroups(workgroup_count.0, workgroup_count.1, workgroup_count.2);
+        }
     }
-    encoder.finish()
+
+    let start = Instant::now();
+    queue.submit(Some(encoder.finish()));
+    let result = to_cpu(&readback, &device, &queue).await;
+    let elapsed = start.elapsed();
+    (result, elapsed.as_nanos())
 }
 
 async fn to_cpu(buffer: &wgpu::Buffer, device: &wgpu::Device, queue: &wgpu::Queue) -> Vec<f32> {
