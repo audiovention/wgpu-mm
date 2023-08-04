@@ -149,31 +149,38 @@ pub fn gemm_5(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
     (workload, shader)
 }
 
-pub fn gemm_6(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
-    tera.add_raw_template("gemm_6.wgsl", include_str!("../shaders/gemm/gemm_6.wgsl"))
+pub fn gemm_tf(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
+    tera.add_raw_template("tfjs.wgsl", include_str!("../shaders/gemm/tfjs.wgsl"))
         .unwrap();
-    let BM = 64;
-    let BN = 64;
-    let BK = 16;
-    let TM = 4;
 
-    context.insert("BM", &BM);
-    context.insert("BN", &BN);
-    context.insert("BK", &BK);
-    context.insert("TM", &TM);
+    let wgs = WorkgroupSize(8, 8, 1);
+    let workload = Workload::new(WorkgroupCount(32, 32, 1), wgs);
 
-    let workgroup_size_x = (BM * BN) / TM;
-    let workgroup_size_y = 1;
-    let workgroup_size_z = 1;
-    let workload = Workload::new(
-        WorkgroupCount(Workload::ceil(N, BN) as _, Workload::ceil(M, BM) as _, 1),
-        WorkgroupSize(workgroup_size_x as _, workgroup_size_y, workgroup_size_z),
-    );
-    println!("workload: {:?}", workload);
+    let aShape = vec![1, 1024, 1024];
+    let aShapeStrides = vec![1048576, 1024];
+    let bShape = vec![1, 1024, 1024];
+    let bShapeStrides = vec![1048576, 1024];
+    let outShape = vec![1, 1024, 1024];
+    let outShapeStrides = vec![1048576, 1024];
+    let dimAOuter = 1024;
+    let dimBOuter = 1024;
+    let dimInner = 1024;
+
+    context.insert("aShape", &aShape);
+    context.insert("aShapeStrides", &aShapeStrides);
+    context.insert("bShape", &bShape);
+    context.insert("bShapeStrides", &bShapeStrides);
+    context.insert("outShape", &outShape);
+    context.insert("outShapeStrides", &outShapeStrides);
+    context.insert("dimAOuter", &dimAOuter);
+    context.insert("dimBOuter", &dimBOuter);
+    context.insert("dimInner", &dimInner);
+
     context.insert("workgroup_size_x", &workload.size().0);
     context.insert("workgroup_size_y", &workload.size().1);
     context.insert("workgroup_size_z", &workload.size().2);
-    let shader = tera.render("gemm_6.wgsl", &context).unwrap();
+
+    let shader = tera.render("tfjs.wgsl", &context).unwrap();
     println!("shader: {}", shader);
     (workload, shader)
 }
@@ -204,5 +211,5 @@ mod tests {
     gemm_test!(test_gemm_3, gemm_3);
     gemm_test!(test_gemm_4, gemm_4);
     gemm_test!(test_gemm_5, gemm_5);
-    gemm_test!(test_gemm_6, gemm_6);
+    gemm_test!(test_gemm_tf, gemm_tf);
 }

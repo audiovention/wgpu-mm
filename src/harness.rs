@@ -47,8 +47,6 @@ async fn check(
         rand_gpu_buffer::<f32>(&device, (K, N), true)
     };
 
-    println!("A: {:?}\n", &A_cpu.clone().unwrap()[..16]);
-
     let (C, C_cpu) = empty_buffer::<f32>(&device, (M, N), true);
     let mut C_cpu = C_cpu.unwrap();
 
@@ -65,10 +63,6 @@ async fn check(
             mae = diff;
         }
     }
-    /*
-    println!("GPU: {:?}\n", &gpu_out);
-    println!("CPU: {:?}", &C_cpu);
-    */
     println!(
         "GPU\n{:?}\n...\n{:?}",
         &gpu_out[..16],
@@ -88,11 +82,23 @@ async fn gpu_handle() -> (wgpu::Device, wgpu::Queue) {
         backends,
         ..Default::default()
     });
-    let adapter = wgpu::util::initialize_adapter_from_env_or_default(&instance, backends, None)
+    let limits = wgpu::Limits {
+        max_compute_invocations_per_workgroup: 1024,
+        ..wgpu::Limits::default()
+    };
+
+    let adapter = wgpu::util::initialize_adapter_from_env_or_default(&instance, None)
         .await
         .expect("No GPU found given preference");
     adapter
-        .request_device(&wgpu::DeviceDescriptor::default(), None)
+        .request_device(
+            &wgpu::DeviceDescriptor {
+                label: None,
+                features: wgpu::Features::empty(),
+                limits,
+            },
+            None,
+        )
         .await
         .expect("Could not create adapter for GPU device")
 }
