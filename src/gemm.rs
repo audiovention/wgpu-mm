@@ -156,15 +156,15 @@ pub fn gemm_tf(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
     let wgs = WorkgroupSize(8, 8, 1);
     let workload = Workload::new(WorkgroupCount(32, 32, 1), wgs);
 
-    let aShape = vec![1, 1024, 1024];
-    let aShapeStrides = vec![1048576, 1024];
-    let bShape = vec![1, 1024, 1024];
-    let bShapeStrides = vec![1048576, 1024];
-    let outShape = vec![1, 1024, 1024];
-    let outShapeStrides = vec![1048576, 1024];
-    let dimAOuter = 1024;
-    let dimBOuter = 1024;
-    let dimInner = 1024;
+    let aShape = vec![1, M, K];
+    let aShapeStrides = vec![M * K, M];
+    let bShape = vec![1, K, N];
+    let bShapeStrides = vec![K * N, N];
+    let outShape = vec![1, M, N];
+    let outShapeStrides = vec![M * N, M];
+    let dimAOuter = M;
+    let dimBOuter = N;
+    let dimInner = K;
 
     context.insert("aShape", &aShape);
     context.insert("aShapeStrides", &aShapeStrides);
