@@ -169,12 +169,8 @@ fn main(@builtin(local_invocation_id) localId : vec3<u32>,
 
 
     var ACached: vec4<f32>;
-    var BCached0: vec4<f32>;
-    var BCached1: vec4<f32>;
-    var BCached2: vec4<f32>;
-    var BCached3: vec4<f32>;
     // Loop over shared dimension.
-    {% for tile in range(end=32) %}
+    for (var t = 0; t < numTiles; t++) {
         // Load one tile of A into local memory.
         {% for innerRow in range(end=4) %}
             mm_Asub[tileRow + {{ innerRow }}][tileCol] = mm_readA(batchA, globalRow + {{ innerRow }}, kStart + tileCol * 4);
@@ -189,10 +185,10 @@ fn main(@builtin(local_invocation_id) localId : vec3<u32>,
 
         // Compute acc values for a single thread.
         {% for k in range(end=8) %}
-            BCached0 = mm_Bsub[{{ k }} * 4 + 0][tileCol];
-            BCached1 = mm_Bsub[{{ k }} * 4 + 1][tileCol];
-            BCached2 = mm_Bsub[{{ k }} * 4 + 2][tileCol];
-            BCached3 = mm_Bsub[{{ k }} * 4 + 3][tileCol];
+            {%- if loop.first -%} var {%- endif %} BCached0 = mm_Bsub[{{ k }} * 4 + 0][tileCol];
+            {%- if loop.first -%} var {%- endif %} BCached1 = mm_Bsub[{{ k }} * 4 + 1][tileCol];
+            {%- if loop.first -%} var {%- endif %} BCached2 = mm_Bsub[{{ k }} * 4 + 2][tileCol];
+            {%- if loop.first -%} var {%- endif %} BCached3 = mm_Bsub[{{ k }} * 4 + 3][tileCol];
 
             {% for i in range(end=4) %}
               ACached = mm_Asub[tileRow + {{i}}][{{ k }}];
@@ -203,7 +199,7 @@ fn main(@builtin(local_invocation_id) localId : vec3<u32>,
             {% endfor %}
         {% endfor %}
         workgroupBarrier();
-    {% endfor %}
+    }
 
     {% for innerRow in range(end=4) %}
         mm_write(batch, globalRow + {{ innerRow }}, globalCol, acc[{{ innerRow }}]);
