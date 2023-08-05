@@ -150,7 +150,7 @@ pub fn gemm_5(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
 }
 
 pub fn gemm_tf(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
-    tera.add_raw_template("tfjs.wgsl", include_str!("../shaders/gemm/tfjs.wgsl"))
+    tera.add_raw_template("tfjs2.wgsl", include_str!("../shaders/gemm/tfjs2.wgsl"))
         .unwrap();
 
     let wgs = WorkgroupSize(8, 8, 1);
@@ -180,7 +180,7 @@ pub fn gemm_tf(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
     context.insert("workgroup_size_y", &workload.size().1);
     context.insert("workgroup_size_z", &workload.size().2);
 
-    let shader = tera.render("tfjs.wgsl", &context).unwrap();
+    let shader = tera.render("tfjs2.wgsl", &context).unwrap();
     println!("shader: {}", shader);
     (workload, shader)
 }
