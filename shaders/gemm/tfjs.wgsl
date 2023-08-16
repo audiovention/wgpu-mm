@@ -203,7 +203,7 @@ fn main(@builtin(local_invocation_id) localId : vec3<u32>,
         workgroupBarrier();
     }
 
-    for (var innerRow = 0; innerRow < 4; innerRow++) {
-        mm_write(batch, globalRow + innerRow, globalCol, acc[innerRow]);
-    }
+    {% for innerRow in range(end=4) %}
+        mm_write(batch, globalRow + {{ innerRow }}, globalCol, acc[{{ innerRow }}]);
+    {% endfor %}
   }

@@ -1,5 +1,5 @@
 #![allow(non_snake_case)]
-use std::{borrow::Cow, fmt::Debug, time::Instant};
+use std::{borrow::Cow, fmt::Debug};
 
 use num_traits::{AsPrimitive, Float};
 use rand::{
