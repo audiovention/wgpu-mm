@@ -1,5 +1,12 @@
 use num_traits::{AsPrimitive, Float};
+use rand::{
+    distributions::{uniform::SampleUniform, Standard},
+    prelude::Distribution,
+};
 use std::fmt::Debug;
+use wgpu::util::DeviceExt;
+
+use crate::generate_weight_data;
 
 /// Quantize a matrix of floats to 8-bit signed integers.
 /// The AsPrimitive<i32> may seem confusing, we be need to do the bit masking
@@ -40,6 +47,30 @@ pub fn sint8_dequantize(quantized_matrix: &[u32], absmax: f32, K: usize, N: usiz
     }
 
     matrix
+}
+
+pub fn rand_quantized_gpu_buffer<F: Float + bytemuck::Pod + AsPrimitive<i32> + Debug>(
+    device: &wgpu::Device,
+    dims: (usize, usize),
+    return_cpu: bool,
+) -> (wgpu::Buffer, Option<Vec<u32>>)
+where
+    Standard: Distribution<F>,
+    F: SampleUniform,
+{
+    let (M, N) = dims;
+    let data = generate_weight_data::<F>(M, N);
+    let (quantized, _absmax) = sint8_quantize(&data, M, N);
+    let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: None,
+        contents: bytemuck::cast_slice(&quantized),
+        usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
+    });
+    if return_cpu {
+        (buffer, Some(quantized))
+    } else {
+        (buffer, None)
+    }
 }
 
 #[cfg(test)]

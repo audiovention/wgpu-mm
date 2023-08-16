@@ -10,8 +10,8 @@ use wgpu::util::DeviceExt;
 
 use crate::{
     gemv::ABSMAX,
-    quant::{sint8_dequantize, sint8_quantize},
-    GPUHandle, WorkgroupCount, Workload,
+    quant::{rand_quantized_gpu_buffer, sint8_dequantize},
+    GPUHandle, Profiler, WorkgroupCount, Workload,
 };
 
 fn mm_ref(A: &[f32], B: &[f32], C: &mut [f32], dims: (usize, usize, usize)) {
@@ -72,7 +72,7 @@ async fn check(
             ],
         });
 
-    let (gpu_out, _) = mm(&handle, &pipeline, &bind_group, &wgc, 1, &C).await;
+    let gpu_out = mm(&handle, &pipeline, &bind_group, &wgc, 1, &C, None, dims).await;
 
     let mut mae = 0.0;
     for i in 0..M * N {
@@ -93,7 +93,7 @@ async fn check(
     }
 }
 
-fn generate_weight_data<F: Float + bytemuck::Pod + AsPrimitive<i32> + Debug>(
+pub fn generate_weight_data<F: Float + bytemuck::Pod + AsPrimitive<i32> + Debug>(
     M: usize,
     N: usize,
 ) -> Vec<F>
@@ -111,30 +111,6 @@ where
     }
 
     data
-}
-
-fn rand_quantized_gpu_buffer<F: Float + bytemuck::Pod + AsPrimitive<i32> + Debug>(
-    device: &wgpu::Device,
-    dims: (usize, usize),
-    return_cpu: bool,
-) -> (wgpu::Buffer, Option<Vec<u32>>)
-where
-    Standard: Distribution<F>,
-    F: SampleUniform,
-{
-    let (M, N) = dims;
-    let data = generate_weight_data::<F>(M, N);
-    let (quantized, _absmax) = sint8_quantize(&data, M, N);
-    let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: None,
-        contents: bytemuck::cast_slice(&quantized),
-        usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
-    });
-    if return_cpu {
-        (buffer, Some(quantized))
-    } else {
-        (buffer, None)
-    }
 }
 
 fn empty_buffer<F: Float + bytemuck::Pod + AsPrimitive<i32> + Debug>(
@@ -252,14 +228,31 @@ pub async fn test_harness(
 
     //warmup
     let N_WARMUP = 5;
-    mm(&handle, &pipeline, &bind_group, &wgc, N_WARMUP, &C).await;
+    mm(
+        &handle,
+        &pipeline,
+        &bind_group,
+        &wgc,
+        N_WARMUP,
+        &C,
+        None,
+        dims,
+    )
+    .await;
 
     let N_REPEATS = 10;
-    let (_, nanos) = mm(&handle, &pipeline, &bind_group, &wgc, N_REPEATS, &C).await;
-    println!("{} ns", nanos);
-    let flops = M * N * K * 2 * N_REPEATS;
-    let gflops = (flops as f64 / 1e9) / (nanos as f64 / 1e9);
-    println!("{} GFLOPS", gflops);
+    let mut profiler = Profiler::new(handle.clone(), N_REPEATS);
+    mm(
+        &handle,
+        &pipeline,
+        &bind_group,
+        &wgc,
+        N_REPEATS as _,
+        &C,
+        Some(&mut profiler),
+        dims,
+    )
+    .await;
 }
 
 async fn mm(
@@ -269,28 +262,31 @@ async fn mm(
     workgroup_count: &WorkgroupCount,
     N_REPEATS: usize,
     readback: &wgpu::Buffer,
-) -> (Vec<f32>, u128) {
+    mut profiler: Option<&mut Profiler>,
+    dims: (usize, usize, usize),
+) -> Vec<f32> {
     let mut encoder = handle
         .device()
         .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
     {
-        let mut cpass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-            label: None,
-            timestamp_writes: None,
-        });
         for _ in 0..N_REPEATS {
-            cpass.set_pipeline(&pipeline);
+            //This needs to be inside the loop for timestamps
+            let mut cpass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+                label: None,
+                timestamp_writes: profiler
+                    .as_mut()
+                    .map(|prof| prof.create_timestamp_queries(dims.0 * dims.1 * dims.2)),
+            });
             cpass.set_bind_group(0, &bind_group, &[]);
-
+            cpass.set_pipeline(&pipeline);
             cpass.dispatch_workgroups(workgroup_count.0, workgroup_count.1, workgroup_count.2);
         }
     }
 
-    let start = Instant::now();
+    profiler.as_mut().map(|prof| prof.resolve(&mut encoder));
     handle.queue().submit(Some(encoder.finish()));
-    let result = to_cpu(&readback, handle).await;
-    let elapsed = start.elapsed();
-    (result, elapsed.as_nanos())
+    profiler.as_mut().map(|prof| prof.read_timestamps());
+    to_cpu(&readback, handle).await
 }
 
 async fn to_cpu(buffer: &wgpu::Buffer, handle: &GPUHandle) -> Vec<f32> {
