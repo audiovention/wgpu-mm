@@ -36,6 +36,28 @@ pub fn gemv_1(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
     (workload, shader)
 }
 
+pub fn gemv_tfjs(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
+    tera.add_raw_template("tfjs.wgsl", include_str!("../shaders/gemv/tfjs.wgsl"))
+        .unwrap();
+    let workgroup_size_x = 8;
+    let workgroup_size_y = 8;
+    let workgroup_size_z = 1;
+    let wgs = WorkgroupSize(workgroup_size_x as _, workgroup_size_y, workgroup_size_z);
+    let workload = Workload::new(
+        WorkgroupCount(
+            Workload::ceil(M, workgroup_size_x) as _,
+            Workload::ceil(N, (workgroup_size_y * 4) as _) as _,
+            1,
+        ),
+        wgs,
+    );
+    context.insert("workgroup_size_x", &workload.size().0);
+    context.insert("workgroup_size_y", &workload.size().1);
+    context.insert("workgroup_size_z", &workload.size().2);
+    let shader = tera.render("tfjs.wgsl", &context).unwrap();
+    (workload, shader)
+}
+
 pub fn qgemv_1(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
     tera.add_raw_template("qgemv_1.wgsl", include_str!("../shaders/gemv/qgemv_1.wgsl"))
         .unwrap();
@@ -85,4 +107,5 @@ mod tests {
     }
 
     gemv_test!(test_gemv_1, gemv_1);
+    gemv_test!(test_gemv_tfjs, gemv_tfjs);
 }
