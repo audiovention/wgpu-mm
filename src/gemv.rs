@@ -22,7 +22,11 @@ pub fn gemv_1(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
     let workgroup_size_z = 1;
     let wgs = WorkgroupSize(workgroup_size_x as _, workgroup_size_y, workgroup_size_z);
     let workload = Workload::new(
-        WorkgroupCount(Workload::ceil(N, (wgs.total() * 4) as usize) as _, 1, 1),
+        WorkgroupCount(
+            Workload::ceil(M, workgroup_size_x) as _,
+            Workload::ceil(N, (workgroup_size_y * 4) as _) as _,
+            1,
+        ),
         wgs,
     );
     context.insert("workgroup_size_x", &workload.size().0);
@@ -80,5 +84,5 @@ mod tests {
         test_harness(workload, shader, dims, true).await;
     }
 
-    gemm_test!(test_gemv_1, gemv_1);
+    gemv_test!(test_gemv_1, gemv_1);
 }

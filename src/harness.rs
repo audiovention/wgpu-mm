@@ -269,6 +269,16 @@ async fn mm(
         .device()
         .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
     {
+        {
+            //WARM
+            let mut cpass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+                label: None,
+                timestamp_writes: None,
+            });
+            cpass.set_bind_group(0, &bind_group, &[]);
+            cpass.set_pipeline(&pipeline);
+            cpass.dispatch_workgroups(workgroup_count.0, workgroup_count.1, workgroup_count.2);
+        }
         for _ in 0..N_REPEATS {
             //This needs to be inside the loop for timestamps
             let mut cpass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
