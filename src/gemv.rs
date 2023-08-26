@@ -3,8 +3,8 @@ use tera::{Context, Tera};
 use crate::{WorkgroupCount, WorkgroupSize, Workload};
 
 const M: usize = 1;
-const N: usize = 1024;
-const K: usize = 1024;
+const N: usize = 51868;
+const K: usize = 384;
 pub const ABSMAX: f32 = 0.2; //Data ranges from -10 to 10, divide by 50
 
 pub fn insert_matrix_dims(context: &mut Context) -> (usize, usize, usize) {
@@ -18,13 +18,13 @@ pub fn gemv_1(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
     tera.add_raw_template("gemv_1.wgsl", include_str!("../shaders/gemv/gemv_1.wgsl"))
         .unwrap();
     let workgroup_size_x = 8;
-    let workgroup_size_y = 8;
+    let workgroup_size_y = 16;
     let workgroup_size_z = 1;
     let wgs = WorkgroupSize(workgroup_size_x as _, workgroup_size_y, workgroup_size_z);
     let workload = Workload::new(
         WorkgroupCount(
             Workload::ceil(M, workgroup_size_x) as _,
-            Workload::ceil(N, (workgroup_size_y * 4) as _) as _,
+            Workload::ceil(N / 2, (workgroup_size_y * 4) as _) as _,
             1,
         ),
         wgs,
@@ -33,28 +33,6 @@ pub fn gemv_1(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
     context.insert("workgroup_size_y", &workload.size().1);
     context.insert("workgroup_size_z", &workload.size().2);
     let shader = tera.render("gemv_1.wgsl", &context).unwrap();
-    (workload, shader)
-}
-
-pub fn gemv_tfjs(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
-    tera.add_raw_template("tfjs.wgsl", include_str!("../shaders/gemv/tfjs.wgsl"))
-        .unwrap();
-    let workgroup_size_x = 8;
-    let workgroup_size_y = 8;
-    let workgroup_size_z = 1;
-    let wgs = WorkgroupSize(workgroup_size_x as _, workgroup_size_y, workgroup_size_z);
-    let workload = Workload::new(
-        WorkgroupCount(
-            Workload::ceil(M, workgroup_size_x) as _,
-            Workload::ceil(N, (workgroup_size_y * 4) as _) as _,
-            1,
-        ),
-        wgs,
-    );
-    context.insert("workgroup_size_x", &workload.size().0);
-    context.insert("workgroup_size_y", &workload.size().1);
-    context.insert("workgroup_size_z", &workload.size().2);
-    let shader = tera.render("tfjs.wgsl", &context).unwrap();
     (workload, shader)
 }
 
@@ -107,5 +85,4 @@ mod tests {
     }
 
     gemv_test!(test_gemv_1, gemv_1);
-    gemv_test!(test_gemv_tfjs, gemv_tfjs);
 }
