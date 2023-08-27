@@ -17,16 +17,25 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>,
     let K = {{ K }}u;
     let ND4 = N / 4u;
     let cRow = global_id.x;
-    let cCol = global_id.y; 
+    let cCol = global_id.y * 2u; 
     if (cRow < M && cCol < ND4) {
-        var tmp = vec4<f32>();
+        var tmp0 = vec4<f32>();
+        var tmp1 = vec4<f32>();
         for (var k = 0u; k < K / 4u; k++) {
           let a = A[cRow * K / 4u + k];
-          tmp += vec4<f32>(a.x) * B[k * N + cCol]; 
-          tmp += vec4<f32>(a.y) * B[k * N + cCol + (1u * ND4)]; 
-          tmp += vec4<f32>(a.z) * B[k * N + cCol + (2u * ND4)];
-          tmp += vec4<f32>(a.w) * B[k * N + cCol + (3u * ND4)];
+          let bidx = k * N + cCol;
+          tmp0 += vec4<f32>(a.x) * B[bidx]; 
+          tmp0 += vec4<f32>(a.y) * B[bidx + (1u * ND4)]; 
+          tmp0 += vec4<f32>(a.z) * B[bidx + (2u * ND4)];
+          tmp0 += vec4<f32>(a.w) * B[bidx + (3u * ND4)];
+
+          tmp1 += vec4<f32>(a.x) * B[bidx + 1u];
+          tmp1 += vec4<f32>(a.y) * B[bidx + (1u * ND4) + 1u];
+          tmp1 += vec4<f32>(a.z) * B[bidx + (2u * ND4) + 1u];
+          tmp1 += vec4<f32>(a.w) * B[bidx + (3u * ND4) + 1u];
+
         }
-        C[cRow * ND4 + cCol] = tmp;
+        C[cRow * ND4 + cCol] = tmp0;
+        C[cRow * ND4 + cCol + 1u] = tmp1;
     }
 }
