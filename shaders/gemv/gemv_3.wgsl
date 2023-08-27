@@ -23,7 +23,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>,
     //Where l = ceil((vector_length / 4) / total_threads)
     for(var i = 0u; i < {{ loadPerThread }}u; i++) {
         let index = local_index + (i * {{ workgroup_size_x * workgroup_size_y }}u);
-        if (index < K / 4u) {
+        if (index < K / 4u){
             A_SHARED[index] =  A[index]; 
         }
     }
@@ -31,25 +31,24 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>,
 
     let ND4 = N / 4u;
     let cRow = global_id.x;
-    let cCol = global_id.y * 2u;
+    let cCol = global_id.y * {{ colPerThread }}u;
 
     if (cRow < M && cCol < ND4) {
-        var tmp0 = vec4<f32>();
-        var tmp1 = vec4<f32>();
+        var tmp = mat2x4<f32>();
         for (var k = 0u; k < K / 4u; k++) {
           let a = A_SHARED[k];
           let bidx = k * N + cCol;
-          tmp0 += vec4<f32>(a.x) * B[bidx]; 
-          tmp0 += vec4<f32>(a.y) * B[bidx + (1u * ND4)]; 
-          tmp0 += vec4<f32>(a.z) * B[bidx + (2u * ND4)];
-          tmp0 += vec4<f32>(a.w) * B[bidx + (3u * ND4)];
+          tmp.x += vec4<f32>(a.x) * B[bidx]; 
+          tmp.x += vec4<f32>(a.y) * B[bidx + (1u * ND4)]; 
+          tmp.x += vec4<f32>(a.z) * B[bidx + (2u * ND4)];
+          tmp.x += vec4<f32>(a.w) * B[bidx + (3u * ND4)];
 
-          tmp1 += vec4<f32>(a.x) * B[bidx + 1u];
-          tmp1 += vec4<f32>(a.y) * B[bidx + (1u * ND4) + 1u];
-          tmp1 += vec4<f32>(a.z) * B[bidx + (2u * ND4) + 1u];
-          tmp1 += vec4<f32>(a.w) * B[bidx + (3u * ND4) + 1u];
+          tmp.y += vec4<f32>(a.x) * B[bidx + 1u];
+          tmp.y += vec4<f32>(a.y) * B[bidx + (1u * ND4) + 1u];
+          tmp.y += vec4<f32>(a.z) * B[bidx + (2u * ND4) + 1u];
+          tmp.y += vec4<f32>(a.w) * B[bidx + (3u * ND4) + 1u];
         }
-        C[cRow * ND4 + cCol] = tmp0;
-        C[cRow * ND4 + cCol + 1u] = tmp1;
+        C[cRow * ND4 + cCol] = tmp.x;
+        C[cRow * ND4 + cCol + 1u] = tmp.y;
     }
 }

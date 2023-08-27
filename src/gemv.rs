@@ -39,8 +39,8 @@ pub fn gemv_1(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
 pub fn gemv_2(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
     tera.add_raw_template("gemv_2.wgsl", include_str!("../shaders/gemv/gemv_2.wgsl"))
         .unwrap();
-    let workgroup_size_x = 8;
-    let workgroup_size_y = 8;
+    let workgroup_size_x = 1;
+    let workgroup_size_y = 16;
     let workgroup_size_z = 1;
     let colPerThread = 2;
     let wgs = WorkgroupSize(workgroup_size_x as _, workgroup_size_y, workgroup_size_z);
@@ -68,7 +68,6 @@ pub fn gemv_3(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
     let colPerThread = 2;
     let wgs = WorkgroupSize(workgroup_size_x as _, workgroup_size_y, workgroup_size_z);
     let loadPerThread = Workload::ceil(K / 4, wgs.total() as usize);
-    println!("loadPerThread: {}", loadPerThread);
     let workload = Workload::new(
         WorkgroupCount(
             Workload::ceil(M, workgroup_size_x) as _,
@@ -77,7 +76,9 @@ pub fn gemv_3(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
         ),
         wgs,
     );
+    println!("Workload: {:?}", workload);
     context.insert("loadPerThread", &loadPerThread);
+    context.insert("colPerThread", &colPerThread);
     context.insert("workgroup_size_x", &workload.size().0);
     context.insert("workgroup_size_y", &workload.size().1);
     context.insert("workgroup_size_z", &workload.size().2);
