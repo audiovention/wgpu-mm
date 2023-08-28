@@ -137,63 +137,51 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>,
 
     //Each thread loads l elements into A_SHARED
     //Where l = ceil((vector_length / 4) / total_threads)
-    for(var i = 0u; i < {{ loadPerThread }}u; i++) {
-        let index = local_index + (i * {{ workgroup_size_x * workgroup_size_y }}u);
-        if (index < K / 4u){
-            A_SHARED[index] =  A[index]; 
-        }
+    if (local_index < {{ K / 4 }}u) {
+        A_SHARED[local_index] = A[local_index]; 
     }
     workgroupBarrier();
 
-    let localRow = i32(localId.y);
-    let tileRow = localRow * {{ ROW_PER_THREAD }};
+    let tileRow = i32(localId.y); 
+    let localCol = i32(localId.x);
     let tileCol = i32(localId.x);
 
-    let globalRow = i32(globalId.y) * {{ ROW_PER_THREAD }};
+    let globalRow = i32(globalId.y);
     let globalCol = i32(globalId.x) * 4;
     let batch = i32(globalId.z);
+
     let batchA = batch % {{ aShape[0] }}; 
     let batchB = batch % {{ bShape[0] }};
-    let globalRowStart = i32(workgroupId.y) * 32;
 
     let numTiles = ({{ dimInner }} - 1) / {{ TILE_DIM }} + 1;
     var kStart = 0;
 
-    //var acc: array<vec4<f32>, {{ ROW_PER_THREAD }}>;
     var acc = vec4<f32>(0.0);
 
-    // Loop over shared dimension.
-    let tileRowB = localRow * {{ ROW_PER_THREAD }};
     for (var t = 0; t < numTiles; t++) {
         // Load one tile of B into local memory.
-        for (var innerRow = 0; innerRow < {{ ROW_PER_THREAD }}; innerRow++) {
-            let inputRow = tileRowB + innerRow;
-            let inputCol = tileCol;
-            B_SHARED[inputRow][inputCol] = mm_readB(batchB, kStart + inputRow, globalCol);
-        }
+        // Each thread loads 4 elements into B_SHARED
+        B_SHARED[tileRow][tileCol] = mm_readB(batchB, kStart + tileRow, globalCol);
+
         kStart = kStart + {{ TILE_DIM }};
         workgroupBarrier();
 
         // Compute acc values for a single thread.
-      for (var k = 0; k < {{ TILE_DIM / 4 }}; k++) {
-        let bidx = k * 4;
-        let BCached0 = B_SHARED[bidx][tileCol];
-        let BCached1 = B_SHARED[bidx + 1][tileCol];
-        let BCached2 = B_SHARED[bidx + 2][tileCol];
-        let BCached3 = B_SHARED[bidx + 3][tileCol];
-        for (var i = 0; i < {{ ROW_PER_THREAD }}; i++) {
-          let ACached = A_SHARED[k];
-          acc = fma(BCached0, vec4<f32>(ACached[0]), acc);
-          acc = fma(BCached1, vec4<f32>(ACached[1]), acc);
-          acc = fma(BCached2, vec4<f32>(ACached[2]), acc);
-          acc = fma(BCached3, vec4<f32>(ACached[3]), acc);
+        for (var k = 0; k < {{ TILE_DIM / 4 }}; k++) {
+            let bidx = k * 4;
+            let BCached0 = B_SHARED[bidx][tileCol];
+            let BCached1 = B_SHARED[bidx + 1][tileCol];
+            let BCached2 = B_SHARED[bidx + 2][tileCol];
+            let BCached3 = B_SHARED[bidx + 3][tileCol];
+
+            let ACached = A_SHARED[k];
+            acc = fma(BCached0, vec4<f32>(ACached[0]), acc);
+            acc = fma(BCached1, vec4<f32>(ACached[1]), acc);
+            acc = fma(BCached2, vec4<f32>(ACached[2]), acc);
+            acc = fma(BCached3, vec4<f32>(ACached[3]), acc);
         }
-      }
         workgroupBarrier();
     }
 
-    {% for innerRow in range(end=ROW_PER_THREAD) %}
-        mm_write(batch, globalRow + {{ innerRow }}, globalCol, acc);
-    {% endfor %}
-
+    mm_write(batch, globalRow, globalCol, acc);
 }

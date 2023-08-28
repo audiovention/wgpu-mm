@@ -47,7 +47,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>,
           tmp.y += vec4<f32>(a.z) * B[bidx + (2u * ND4) + 1u];
           tmp.y += vec4<f32>(a.w) * B[bidx + (3u * ND4) + 1u];
         }
-        C[cCol] = tmp.x;
+        C[cCol] = tmp.x; 
         C[cCol + 1u] = tmp.y;
     }
 }

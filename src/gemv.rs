@@ -3,7 +3,7 @@ use tera::{Context, Tera};
 use crate::{WorkgroupCount, WorkgroupSize, Workload};
 
 const M: usize = 1;
-const N: usize = 51868;
+const N: usize = 51872;
 const K: usize = 384;
 pub const ABSMAX: f32 = 0.2; //Data ranges from -10 to 10, divide by 50
 
@@ -61,6 +61,7 @@ pub fn gemv_3(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
     let colPerThread = 2;
     let wgs = WorkgroupSize(workgroup_size_x as _, workgroup_size_y, workgroup_size_z);
     let loadPerThread = Workload::ceil(K / 4, wgs.total() as usize);
+    println!("loadPerThread: {}", loadPerThread);
     let workload = Workload::new(
         WorkgroupCount(
             Workload::ceil(N / (colPerThread * 4), wgs.total() as _) as _,
@@ -84,8 +85,7 @@ pub fn gemv_4(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
         .unwrap();
 
     let TILE_DIM = 32;
-    let ROW_PER_THREAD = 1;
-    let workgroup_size = WorkgroupSize((TILE_DIM / 4) as _, (TILE_DIM / ROW_PER_THREAD) as _, 1);
+    let workgroup_size = WorkgroupSize((TILE_DIM / 4) as _, TILE_DIM as _, 1);
     let loadPerThread = Workload::ceil(K / 4, workgroup_size.total() as usize);
     let group_x = Workload::ceil(N, TILE_DIM);
     let group_y = Workload::ceil(M, TILE_DIM);
@@ -105,7 +105,6 @@ pub fn gemv_4(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
 
     context.insert("loadPerThread", &loadPerThread);
     context.insert("TILE_DIM", &TILE_DIM);
-    context.insert("ROW_PER_THREAD", &ROW_PER_THREAD);
     context.insert("aShape", &aShape);
     context.insert("aShapeStrides", &aShapeStrides);
     context.insert("bShape", &bShape);
@@ -120,8 +119,9 @@ pub fn gemv_4(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
     context.insert("workgroup_size_y", &workload.size().1);
     context.insert("workgroup_size_z", &workload.size().2);
 
+    println!("Workload: {:?}", workload);
     let shader = tera.render("gemv_4.wgsl", &context).unwrap();
-    println!("shader: {}", shader);
+    println!("Shader: {}", shader);
     (workload, shader)
 }
 

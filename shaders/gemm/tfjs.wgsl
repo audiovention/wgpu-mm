@@ -135,7 +135,6 @@ fn main(@builtin(local_invocation_id) localId : vec3<u32>,
     let batch = i32(globalId.z);
     let batchA = batch % {{ aShape[0] }}; 
     let batchB = batch % {{ bShape[0] }};
-    let globalRowStart = i32(workgroupId.y) * 32;
 
     let numTiles = ({{ dimInner }} - 1) / {{ TILE_DIM }} + 1;
     var kStart = 0;

@@ -81,12 +81,17 @@ async fn check(
             mae = diff;
         }
     }
+    let plen = 32;
     println!(
         "GPU\n{:?}\n...\n{:?}",
-        &gpu_out[..16],
-        &gpu_out[M * N - 16..]
+        &gpu_out[..plen],
+        &gpu_out[M * N - plen..]
     );
-    println!("CPU\n{:?}\n...\n{:?}", &C_cpu[..16], &C_cpu[M * N - 16..]);
+    println!(
+        "CPU\n{:?}\n...\n{:?}",
+        &C_cpu[..plen],
+        &C_cpu[M * N - plen..]
+    );
     println!("Max Absolute Error: {}", mae);
     if mae > 1e-3 {
         panic!("MAE too high");
