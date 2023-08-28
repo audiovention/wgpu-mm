@@ -153,8 +153,14 @@ pub fn gemm_tf(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
     tera.add_raw_template("tfjs.wgsl", include_str!("../shaders/gemm/tfjs.wgsl"))
         .unwrap();
 
-    let wgs = WorkgroupSize(8, 8, 1);
-    let workload = Workload::new(WorkgroupCount(32, 32, 1), wgs);
+    let TILE_DIM = 32;
+    let ROW_PER_THREAD = 4;
+    let workgroup_size = WorkgroupSize((TILE_DIM / 4) as _, (TILE_DIM / ROW_PER_THREAD) as _, 1);
+    let group_x = Workload::ceil(N, TILE_DIM);
+    let group_y = Workload::ceil(M, TILE_DIM);
+
+    let workgroup_count = WorkgroupCount(group_x as _, group_y as _, 1);
+    let workload = Workload::new(workgroup_count, workgroup_size);
 
     let aShape = vec![1, M, K];
     let aShapeStrides = vec![M * K, M];
@@ -166,6 +172,8 @@ pub fn gemm_tf(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
     let dimBOuter = N;
     let dimInner = K;
 
+    context.insert("TILE_DIM", &TILE_DIM);
+    context.insert("ROW_PER_THREAD", &ROW_PER_THREAD);
     context.insert("aShape", &aShape);
     context.insert("aShapeStrides", &aShapeStrides);
     context.insert("bShape", &bShape);
