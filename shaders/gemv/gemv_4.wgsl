@@ -19,7 +19,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>,
     let K = {{ K }}u;
     let ND4 = N / 4u;
 
-    let cCol = global_id.x * 2u;  
+    let cCol = (group_id.x * {{ workgroup_size_x * workgroup_size_y }}u + local_invocation_index) * 2u;  
     if (cCol < ND4) {
         var tmp0 = vec4<f32>();
         var tmp1 = vec4<f32>();

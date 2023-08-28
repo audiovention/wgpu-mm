@@ -1,29 +1,5 @@
-  // Checks whether coordinates lie within the bounds of the shape.
-fn coordsInBounds2D(coord : vec2<i32>, shape : vec2<i32>) -> bool {
-    return all(coord >= vec2<i32>(0)) && all(coord < shape);
-}
-fn coordsInBounds3D(coord : vec3<i32>, shape : vec3<i32>) -> bool {
-    return all(coord >= vec3<i32>(0)) && all(coord < shape);
-}
-fn coordsInBounds4D(coord : vec4<i32>, shape : vec4<i32>) -> bool {
-    return all(coord >= vec4<i32>(0)) && all(coord < shape);
-}
-
-fn getIndexFromCoords1D(coord : i32, shape : i32) -> i32 {
-    return coord;
-}
-
-fn getIndexFromCoords2D(coords : vec2<i32>, shape : vec2<i32>) -> i32 {
-    return dot(coords, vec2<i32>(shape.y, 1));
-}
-
 fn getIndexFromCoords3D(coords : vec3<i32>, shape : vec3<i32>) -> i32 {
     return dot(coords, vec3<i32>(shape.y * shape.z, shape.z, 1));
-}
-
-fn getIndexFromCoords4D(coords : vec4<i32>, shape : vec4<i32>) -> i32 {
-    return dot(coords, vec4<i32>(
-        shape.y * shape.z * shape.w, shape.z * shape.w, shape.w, 1));
 }
 
 fn getCoordsFromIndex(index : i32) -> vec3<i32> {
