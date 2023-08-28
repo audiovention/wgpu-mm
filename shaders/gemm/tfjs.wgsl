@@ -140,7 +140,7 @@ fn main(@builtin(local_invocation_id) localId : vec3<u32>,
     let numTiles = ({{ dimInner }} - 1) / {{ TILE_DIM }} + 1;
     var kStart = 0;
 
-    var acc: array<vec4<f32>, {{ ROW_PER_THREAD}}>;
+    var acc: array<vec4<f32>, {{ ROW_PER_THREAD }}>;
 
     // Loop over shared dimension.
     let tileRowB = localRow * {{ ROW_PER_THREAD }};

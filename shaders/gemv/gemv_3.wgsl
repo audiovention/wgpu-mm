@@ -30,10 +30,9 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>,
     workgroupBarrier();
 
     let ND4 = N / 4u;
-    let cRow = global_id.x;
-    let cCol = global_id.y * {{ colPerThread }}u;
+    let cCol = global_id.x * {{ colPerThread }}u;
 
-    if (cRow < M && cCol < ND4) {
+    if (cCol < ND4) {
         var tmp = mat2x4<f32>();
         for (var k = 0u; k < K / 4u; k++) {
           let a = A_SHARED[k];
@@ -48,7 +47,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>,
           tmp.y += vec4<f32>(a.z) * B[bidx + (2u * ND4) + 1u];
           tmp.y += vec4<f32>(a.w) * B[bidx + (3u * ND4) + 1u];
         }
-        C[cRow * ND4 + cCol] = tmp.x;
-        C[cRow * ND4 + cCol + 1u] = tmp.y;
+        C[cCol] = tmp.x;
+        C[cCol + 1u] = tmp.y;
     }
 }
