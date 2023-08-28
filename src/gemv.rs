@@ -17,18 +17,14 @@ pub fn insert_matrix_dims(context: &mut Context) -> (usize, usize, usize) {
 pub fn gemv_1(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
     tera.add_raw_template("gemv_1.wgsl", include_str!("../shaders/gemv/gemv_1.wgsl"))
         .unwrap();
-    let workgroup_size_x = 1;
-    let workgroup_size_y = 16;
+    let workgroup_size_x = 8;
+    let workgroup_size_y = 8;
     let workgroup_size_z = 1;
     let wgs = WorkgroupSize(workgroup_size_x as _, workgroup_size_y, workgroup_size_z);
-    let workload = Workload::new(
-        WorkgroupCount(
-            Workload::ceil(M, workgroup_size_x) as _,
-            Workload::ceil(N / 4, workgroup_size_y as _) as _,
-            1,
-        ),
-        wgs,
-    );
+
+    let requiredGroups = Workload::ceil(N / 4, wgs.total() as usize);
+
+    let workload = Workload::new(WorkgroupCount(requiredGroups as _, 1, 1), wgs);
     context.insert("workgroup_size_x", &workload.size().0);
     context.insert("workgroup_size_y", &workload.size().1);
     context.insert("workgroup_size_z", &workload.size().2);
@@ -44,14 +40,11 @@ pub fn gemv_2(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
     let workgroup_size_z = 1;
     let colPerThread = 2;
     let wgs = WorkgroupSize(workgroup_size_x as _, workgroup_size_y, workgroup_size_z);
-    let workload = Workload::new(
-        WorkgroupCount(
-            Workload::ceil(M, workgroup_size_x) as _,
-            Workload::ceil(N / (colPerThread * 4), workgroup_size_y as _) as _,
-            1,
-        ),
-        wgs,
-    );
+
+    let requiredGroups = Workload::ceil(N / (colPerThread * 4), wgs.total() as usize);
+
+    let workload = Workload::new(WorkgroupCount(requiredGroups as _, 1, 1), wgs);
+    println!("Workload: {:?}", workload);
     context.insert("workgroup_size_x", &workload.size().0);
     context.insert("workgroup_size_y", &workload.size().1);
     context.insert("workgroup_size_z", &workload.size().2);

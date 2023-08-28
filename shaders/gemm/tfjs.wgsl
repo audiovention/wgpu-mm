@@ -146,7 +146,7 @@ var<private> workgroupId: vec3<u32>;
 var<workgroup> mm_Asub : array<array<vec4<f32>, 8>, 32>; //32x32 tile
 var<workgroup> mm_Bsub : array<array<vec4<f32>, 8>, 32>; //32x32 tile
   
-@compute @workgroup_size(8, 8, 1) 
+@compute @workgroup_size({{ workgroup_size_x }}, {{ workgroup_size_y }}, 1) 
 fn main(@builtin(local_invocation_id) localId : vec3<u32>,
         @builtin(global_invocation_id) globalId : vec3<u32>,
         @builtin(workgroup_id) workgroupId : vec3<u32>) {
