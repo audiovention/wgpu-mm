@@ -2,6 +2,7 @@
 #![allow(non_snake_case)]
 mod handle;
 mod harness;
+pub mod hgemm;
 mod profiler;
 pub mod quant;
 pub mod sgemm;
