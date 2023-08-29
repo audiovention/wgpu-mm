@@ -9,8 +9,8 @@ use rand::{
 use wgpu::util::DeviceExt;
 
 use crate::{
-    gemv::ABSMAX,
     quant::{rand_quantized_gpu_buffer, sint8_dequantize},
+    sgemv::ABSMAX,
     GPUHandle, Profiler, WorkgroupCount, Workload,
 };
 
