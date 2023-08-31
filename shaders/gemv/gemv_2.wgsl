@@ -17,18 +17,19 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>,
     let M = {{ M }}u;
     let N = {{ N }}u;
     let K = {{ K }}u;
-    let ND4 = N / 4u;
+    let ND4 = {{ ND4 }}u;
+    let KD4 = {{ KD4 }}u;
 
     let cCol = global_id.x * {{ colPerThread }}u;  
     if (cCol < ND4) {
         var tmp = mat{{ colPerThread }}x4<f32>();
-        for (var k = 0u; k < K / 4u; k++) {
+        for (var k = 0u; k < KD4; k++) {
           let a = A[k];
           let bidx = k * N + cCol;
             
           {%- for i in range(end=colPerThread) %}
               tmp[{{ i }}] += vec4<f32>(a.x) * B[bidx + {{ i }}u]; 
-              tmp[{{ i }}] += vec4<f32>(a.y) * B[bidx + (1u * ND4) + {{ i }}u]; 
+              tmp[{{ i }}] += vec4<f32>(a.y) * B[bidx + ND4 + {{ i }}u]; 
               tmp[{{ i }}] += vec4<f32>(a.z) * B[bidx + (2u * ND4) + {{ i }}u];
               tmp[{{ i }}] += vec4<f32>(a.w) * B[bidx + (3u * ND4) + {{ i }}u];
           {% endfor -%}

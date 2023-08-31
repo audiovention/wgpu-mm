@@ -11,6 +11,9 @@ pub fn insert_matrix_dims(context: &mut Context) -> (usize, usize, usize) {
     context.insert("M", &M);
     context.insert("N", &N);
     context.insert("K", &K);
+    context.insert("MD4", &(M / 4));
+    context.insert("ND4", &(N / 4));
+    context.insert("KD4", &(K / 4));
     (M, N, K)
 }
 
