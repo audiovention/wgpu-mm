@@ -146,6 +146,7 @@ pub fn qgemv_1(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
 
 #[cfg(test)]
 mod tests {
+    use crate::quant::Quantization;
     use crate::test_harness;
 
     use super::*;
@@ -159,7 +160,7 @@ mod tests {
                 let mut context = tera::Context::new();
                 let dims = insert_matrix_dims(&mut context);
                 let (workload, shader) = $gemv_function(&mut tera, &mut context);
-                test_harness(workload, shader, dims, false).await;
+                test_harness(workload, shader, dims, Quantization::None).await;
             }
         };
     }
@@ -171,7 +172,7 @@ mod tests {
         let mut context = tera::Context::new();
         let dims = insert_matrix_dims(&mut context);
         let (workload, shader) = qgemv_1(&mut tera, &mut context);
-        test_harness(workload, shader, dims, true).await;
+        test_harness(workload, shader, dims, Quantization::SInt8).await;
     }
 
     gemv_test!(test_gemv_1, gemv_1);

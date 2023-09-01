@@ -217,6 +217,7 @@ pub fn sgemm_tf(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
 
 #[cfg(test)]
 mod tests {
+    use crate::quant::Quantization;
     use crate::test_harness;
 
     use super::*;
@@ -230,7 +231,7 @@ mod tests {
                 let mut context = tera::Context::new();
                 let dims = insert_matrix_dims(&mut context);
                 let (workload, shader) = $sgemm_function(&mut tera, &mut context);
-                test_harness(workload, shader, dims, false).await;
+                test_harness(workload, shader, dims, Quantization::None).await;
             }
         };
     }

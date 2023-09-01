@@ -8,6 +8,13 @@ use wgpu::util::DeviceExt;
 
 use crate::generate_weight_data;
 
+#[derive(Debug, Clone, Copy)]
+pub enum Quantization {
+    None,
+    SInt8,
+    Float16,
+}
+
 /// Quantize a matrix of floats to 8-bit signed integers.
 /// The AsPrimitive<i32> may seem confusing, we be need to do the bit masking
 /// using signed integers, then cast to unsigned, to avoid losing negative values

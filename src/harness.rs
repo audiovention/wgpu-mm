@@ -1,6 +1,7 @@
 #![allow(non_snake_case)]
 use std::{borrow::Cow, fmt::Debug};
 
+use half::f16;
 use num_traits::{AsPrimitive, Float};
 use rand::{
     distributions::{uniform::SampleUniform, Standard, Uniform},
@@ -9,7 +10,7 @@ use rand::{
 use wgpu::util::DeviceExt;
 
 use crate::{
-    quant::{rand_quantized_gpu_buffer, sint8_dequantize},
+    quant::{rand_quantized_gpu_buffer, sint8_dequantize, Quantization},
     sgemv::ABSMAX,
     GPUHandle, Profiler, WorkgroupCount, Workload,
 };
@@ -32,18 +33,20 @@ async fn check(
     pipeline: &wgpu::ComputePipeline,
     wgc: &WorkgroupCount,
     dims: (usize, usize, usize),
-    quantized: bool,
+    quantized: Quantization,
 ) {
     let (M, N, K) = dims;
 
     let (A, A_cpu) = rand_gpu_buffer::<f32>(handle.device(), (M, K), true, false);
 
-    let (B, B_cpu) = if quantized {
-        let (B, B_cpu) = rand_quantized_gpu_buffer::<f32>(handle.device(), (K, N), true);
-        let b_dequant = sint8_dequantize(&B_cpu.unwrap(), ABSMAX, K, N);
-        (B, Some(b_dequant))
-    } else {
-        rand_gpu_buffer::<f32>(handle.device(), (K, N), true, false)
+    let (B, B_cpu) = match quantized {
+        Quantization::None => rand_gpu_buffer::<f32>(handle.device(), (K, N), true, false),
+        Quantization::Float16 => rand_gpu_buffer::<f32>(handle.device(), (K, N), true, false),
+        Quantization::SInt8 => {
+            let (B, B_cpu) = rand_quantized_gpu_buffer::<f32>(handle.device(), (K, N), true);
+            let b_dequant = sint8_dequantize(&B_cpu.unwrap(), ABSMAX, K, N);
+            (B, Some(b_dequant))
+        }
     };
 
     let (C, C_cpu) = empty_buffer::<f32>(handle.device(), (M, N), true);
@@ -173,7 +176,7 @@ pub async fn test_harness(
     workload: Workload,
     shader: String,
     dims: (usize, usize, usize),
-    quantize_b: bool,
+    quantize_b: Quantization,
 ) {
     let handle = GPUHandle::new().await.unwrap();
     let (M, N, K) = dims;
@@ -196,14 +199,23 @@ pub async fn test_harness(
             entry_point: "main",
         });
 
-    check(&handle, &pipeline, &workload.count(), (M, N, K), quantize_b).await;
+    check(
+        &handle,
+        &pipeline,
+        &workload.count(),
+        (M, N, K),
+        quantize_b.clone(),
+    )
+    .await;
 
     let (A, _) = rand_gpu_buffer::<f32>(handle.device(), (M, K), false, false);
-    let B = if quantize_b {
-        rand_quantized_gpu_buffer::<f32>(handle.device(), (K, N), false).0
-    } else {
-        rand_gpu_buffer::<f32>(handle.device(), (K, N), false, false).0
+
+    let B = match quantize_b {
+        Quantization::None => rand_gpu_buffer::<f32>(handle.device(), (K, N), false, false).0,
+        Quantization::SInt8 => rand_quantized_gpu_buffer::<f32>(handle.device(), (K, N), false).0,
+        Quantization::Float16 => rand_gpu_buffer::<f16>(handle.device(), (K, N), false, false).0,
     };
+
     let (C, _) = rand_gpu_buffer::<f32>(handle.device(), (M, N), false, true);
 
     let bind_group_entries = [
