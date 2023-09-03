@@ -43,12 +43,8 @@ async fn check(
         Quantization::None => rand_gpu_buffer::<f32>(handle.device(), (K, N), true, false),
         Quantization::Float16 => rand_gpu_buffer::<f32>(handle.device(), (K, N), true, false),
         Quantization::SInt8 => {
-            let (B, B_cpu) = rand_quantized_gpu_buffer::<f32>(
-                handle.device(),
-                (K, N),
-                true,
-                Quantization::SInt8,
-            );
+            let (B, B_cpu) =
+                rand_quantized_gpu_buffer(handle.device(), (K, N), true, Quantization::SInt8);
             let b_dequant = sint8_dequantize(&B_cpu.unwrap(), ABSMAX, K, N);
             (B, Some(b_dequant))
         }
@@ -218,9 +214,11 @@ pub async fn test_harness(
     let B = match quantize_b {
         Quantization::None => rand_gpu_buffer::<f32>(handle.device(), (K, N), false, false).0,
         Quantization::SInt8 => {
-            rand_quantized_gpu_buffer::<f32>(handle.device(), (K, N), false, Quantization::SInt8).0
+            rand_quantized_gpu_buffer(handle.device(), (K, N), false, Quantization::SInt8).0
         }
-        Quantization::Float16 => rand_gpu_buffer::<f16>(handle.device(), (K, N), false, false).0,
+        Quantization::Float16 => {
+            rand_quantized_gpu_buffer(handle.device(), (K, N), false, Quantization::Float16).0
+        }
     };
 
     let (C, _) = rand_gpu_buffer::<f32>(handle.device(), (M, N), false, true);

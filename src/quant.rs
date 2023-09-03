@@ -89,19 +89,19 @@ pub fn float16_dequantize(matrix: &[u32], K: usize, N: usize) -> Vec<f32> {
     result
 }
 
-pub fn rand_quantized_gpu_buffer<F: Float + bytemuck::Pod + AsPrimitive<i32> + Debug>(
+pub fn rand_quantized_gpu_buffer(
     device: &wgpu::Device,
     dims: (usize, usize),
     return_cpu: bool,
     quantization: Quantization,
-) -> (wgpu::Buffer, Option<Vec<u32>>)
-where
-    Standard: Distribution<F>,
-    F: SampleUniform,
-{
+) -> (wgpu::Buffer, Option<Vec<u32>>) {
     let (M, N) = dims;
-    let data = generate_weight_data::<F>(M, N);
-    let (quantized, _absmax) = sint8_quantize(&data, M, N);
+    let data = generate_weight_data::<f32>(M, N);
+    let (quantized, _absmax) = match quantization {
+        Quantization::SInt8 => sint8_quantize(&data, M, N),
+        Quantization::Float16 => (float16_quantize(&data, M, N), 0.0),
+        _ => unreachable!(),
+    };
     let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: None,
         contents: bytemuck::cast_slice(&quantized),
