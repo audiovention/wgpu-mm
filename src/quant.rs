@@ -1,9 +1,6 @@
 use half::f16;
 use num_traits::{AsPrimitive, Float};
-use rand::{
-    distributions::{uniform::SampleUniform, Standard},
-    prelude::Distribution,
-};
+
 use std::fmt::Debug;
 use wgpu::util::DeviceExt;
 
@@ -76,7 +73,7 @@ pub fn float16_quantize(matrix: &[f32], K: usize, N: usize) -> Vec<u32> {
 }
 
 //Dequantize a matrix of 16 bit floats to 32 bit floats
-pub fn float16_dequantize(matrix: &[u32], K: usize, N: usize) -> Vec<f32> {
+pub fn float16_dequantize(matrix: &[u32], _K: usize, _N: usize) -> Vec<f32> {
     let mut result = Vec::with_capacity(matrix.len() * 2);
 
     for packed in matrix {

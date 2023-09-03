@@ -32,7 +32,7 @@ pub fn gemv_1(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
     context.insert("workgroup_size_x", &workload.size().0);
     context.insert("workgroup_size_y", &workload.size().1);
     context.insert("workgroup_size_z", &workload.size().2);
-    let shader = tera.render("gemv_1.wgsl", &context).unwrap();
+    let shader = tera.render("gemv_1.wgsl", context).unwrap();
     (workload, shader)
 }
 
@@ -55,7 +55,7 @@ pub fn gemv_2(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
     context.insert("workgroup_size_x", &workload.size().0);
     context.insert("workgroup_size_y", &workload.size().1);
     context.insert("workgroup_size_z", &workload.size().2);
-    let shader = tera.render("gemv_2.wgsl", &context).unwrap();
+    let shader = tera.render("gemv_2.wgsl", context).unwrap();
     println!("Shader: {}", shader);
     (workload, shader)
 }
@@ -77,7 +77,7 @@ pub fn gemv_3(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
     context.insert("workgroup_size_x", &workload.size().0);
     context.insert("workgroup_size_y", &workload.size().1);
     context.insert("workgroup_size_z", &workload.size().2);
-    let shader = tera.render("gemv_3.wgsl", &context).unwrap();
+    let shader = tera.render("gemv_3.wgsl", context).unwrap();
     (workload, shader)
 }
 
@@ -121,7 +121,7 @@ pub fn gemv_4(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
     context.insert("workgroup_size_z", &workload.size().2);
 
     println!("Workload: {:?}", workload);
-    let shader = tera.render("gemv_4.wgsl", &context).unwrap();
+    let shader = tera.render("gemv_4.wgsl", context).unwrap();
     println!("Shader: {}", shader);
     (workload, shader)
 }
@@ -140,7 +140,7 @@ pub fn qgemv_1(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
     context.insert("workgroup_size_y", &workload.size().1);
     context.insert("workgroup_size_z", &workload.size().2);
     context.insert("absmax", &ABSMAX);
-    let shader = tera.render("qgemv_1.wgsl", &context).unwrap();
+    let shader = tera.render("qgemv_1.wgsl", context).unwrap();
     (workload, shader)
 }
 

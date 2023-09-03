@@ -33,7 +33,7 @@ pub fn hgemm_1v(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
     context.insert("workgroup_size_x", &workload.size().0);
     context.insert("workgroup_size_y", &workload.size().1);
     context.insert("workgroup_size_z", &workload.size().2);
-    let shader = tera.render("hgemm_1v.wgsl", &context).unwrap();
+    let shader = tera.render("hgemm_1v.wgsl", context).unwrap();
     println!("shader: {}", shader);
     (workload, shader)
 }

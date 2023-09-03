@@ -100,13 +100,13 @@ impl Profiler {
         let end_index = self.query_index;
         self.query_index += 1;
 
-        let timestamp_writes = wgpu::ComputePassTimestampWrites {
+        
+
+        wgpu::ComputePassTimestampWrites {
             query_set: &self.query_set,
             beginning_of_pass_write_index: Some(beginning_index),
             end_of_pass_write_index: Some(end_index),
-        };
-
-        timestamp_writes
+        }
     }
 
     pub fn resolve(&self, encoder: &mut wgpu::CommandEncoder) {

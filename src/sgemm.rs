@@ -29,7 +29,7 @@ pub fn sgemm_1(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
     context.insert("workgroup_size_x", &workload.size().0);
     context.insert("workgroup_size_y", &workload.size().1);
     context.insert("workgroup_size_z", &workload.size().2);
-    let shader = tera.render("sgemm_1.wgsl", &context).unwrap();
+    let shader = tera.render("sgemm_1.wgsl", context).unwrap();
     println!("shader: {}", shader);
     (workload, shader)
 }
@@ -54,7 +54,7 @@ pub fn sgemm_1v(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
     context.insert("workgroup_size_x", &workload.size().0);
     context.insert("workgroup_size_y", &workload.size().1);
     context.insert("workgroup_size_z", &workload.size().2);
-    let shader = tera.render("sgemm_1v.wgsl", &context).unwrap();
+    let shader = tera.render("sgemm_1v.wgsl", context).unwrap();
     println!("shader: {}", shader);
     (workload, shader)
 }
@@ -75,7 +75,7 @@ pub fn sgemm_2(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
     context.insert("workgroup_size_x", &workload.size().0);
     context.insert("workgroup_size_y", &workload.size().1);
     context.insert("workgroup_size_z", &workload.size().2);
-    let shader = tera.render("sgemm_2.wgsl", &context).unwrap();
+    let shader = tera.render("sgemm_2.wgsl", context).unwrap();
     (workload, shader)
 }
 
@@ -101,7 +101,7 @@ pub fn sgemm_3(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
     context.insert("workgroup_size_x", &workload.size().0);
     context.insert("workgroup_size_y", &workload.size().1);
     context.insert("workgroup_size_z", &workload.size().2);
-    let shader = tera.render("sgemm_3.wgsl", &context).unwrap();
+    let shader = tera.render("sgemm_3.wgsl", context).unwrap();
     (workload, shader)
 }
 
@@ -132,7 +132,7 @@ pub fn sgemm_4(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
     context.insert("workgroup_size_x", &workload.size().0);
     context.insert("workgroup_size_y", &workload.size().1);
     context.insert("workgroup_size_z", &workload.size().2);
-    let shader = tera.render("sgemm_4.wgsl", &context).unwrap();
+    let shader = tera.render("sgemm_4.wgsl", context).unwrap();
     println!("shader: {}", shader);
     (workload, shader)
 }
@@ -166,7 +166,7 @@ pub fn sgemm_5(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
     context.insert("workgroup_size_x", &workload.size().0);
     context.insert("workgroup_size_y", &workload.size().1);
     context.insert("workgroup_size_z", &workload.size().2);
-    let shader = tera.render("sgemm_5.wgsl", &context).unwrap();
+    let shader = tera.render("sgemm_5.wgsl", context).unwrap();
     println!("shader: {}", shader);
     (workload, shader)
 }
@@ -210,7 +210,7 @@ pub fn sgemm_tf(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
     context.insert("workgroup_size_y", &workload.size().1);
     context.insert("workgroup_size_z", &workload.size().2);
 
-    let shader = tera.render("tfjs.wgsl", &context).unwrap();
+    let shader = tera.render("tfjs.wgsl", context).unwrap();
     println!("shader: {}", shader);
     (workload, shader)
 }

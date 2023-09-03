@@ -1,7 +1,7 @@
 #![allow(non_snake_case)]
 use std::{borrow::Cow, fmt::Debug};
 
-use half::f16;
+
 use num_traits::{AsPrimitive, Float};
 use rand::{
     distributions::{uniform::SampleUniform, Standard, Uniform},
@@ -76,7 +76,7 @@ async fn check(
             ],
         });
 
-    let gpu_out = mm(&handle, &pipeline, &bind_group, &wgc, 1, &C, None, dims).await;
+    let gpu_out = mm(handle, pipeline, &bind_group, wgc, 1, &C, None, dims).await;
 
     let mut mae = 0.0;
     for i in 0..M * N {
@@ -203,9 +203,9 @@ pub async fn test_harness(
     check(
         &handle,
         &pipeline,
-        &workload.count(),
+        workload.count(),
         (M, N, K),
-        quantize_b.clone(),
+        quantize_b,
     )
     .await;
 
@@ -254,7 +254,7 @@ pub async fn test_harness(
         &handle,
         &pipeline,
         &bind_group,
-        &wgc,
+        wgc,
         N_WARMUP,
         &C,
         None,
@@ -268,7 +268,7 @@ pub async fn test_harness(
         &handle,
         &pipeline,
         &bind_group,
-        &wgc,
+        wgc,
         N_REPEATS as _,
         &C,
         Some(&mut profiler),
@@ -297,8 +297,8 @@ async fn mm(
                 label: None,
                 timestamp_writes: None,
             });
-            cpass.set_bind_group(0, &bind_group, &[]);
-            cpass.set_pipeline(&pipeline);
+            cpass.set_bind_group(0, bind_group, &[]);
+            cpass.set_pipeline(pipeline);
             cpass.dispatch_workgroups(workgroup_count.0, workgroup_count.1, workgroup_count.2);
         }
         for _ in 0..N_REPEATS {
@@ -309,16 +309,16 @@ async fn mm(
                     .as_mut()
                     .map(|prof| prof.create_timestamp_queries(dims.0 * dims.1 * dims.2)),
             });
-            cpass.set_bind_group(0, &bind_group, &[]);
-            cpass.set_pipeline(&pipeline);
+            cpass.set_bind_group(0, bind_group, &[]);
+            cpass.set_pipeline(pipeline);
             cpass.dispatch_workgroups(workgroup_count.0, workgroup_count.1, workgroup_count.2);
         }
     }
 
-    profiler.as_mut().map(|prof| prof.resolve(&mut encoder));
+    if let Some(prof) = profiler.as_mut() { prof.resolve(&mut encoder) }
     handle.queue().submit(Some(encoder.finish()));
-    profiler.as_mut().map(|prof| prof.read_timestamps());
-    to_cpu(&readback, handle).await
+    if let Some(prof) = profiler.as_mut() { prof.read_timestamps() }
+    to_cpu(readback, handle).await
 }
 
 async fn to_cpu(buffer: &wgpu::Buffer, handle: &GPUHandle) -> Vec<f32> {
