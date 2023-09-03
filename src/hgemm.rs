@@ -30,6 +30,7 @@ pub fn hgemm_1v(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
         ),
         WorkgroupSize(workgroup_size_x, workgroup_size_y, workgroup_size_z),
     );
+    println!("workload: {:?}", workload);
     context.insert("workgroup_size_x", &workload.size().0);
     context.insert("workgroup_size_y", &workload.size().1);
     context.insert("workgroup_size_z", &workload.size().2);

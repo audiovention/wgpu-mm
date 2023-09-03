@@ -1,7 +1,6 @@
 #![allow(non_snake_case)]
 use std::{borrow::Cow, fmt::Debug};
 
-
 use num_traits::{AsPrimitive, Float};
 use rand::{
     distributions::{uniform::SampleUniform, Standard, Uniform},
@@ -10,7 +9,7 @@ use rand::{
 use wgpu::util::DeviceExt;
 
 use crate::{
-    quant::{rand_quantized_gpu_buffer, sint8_dequantize, Quantization},
+    quant::{float16_dequantize, rand_quantized_gpu_buffer, sint8_dequantize, Quantization},
     sgemv::ABSMAX,
     GPUHandle, Profiler, WorkgroupCount, Workload,
 };
@@ -41,7 +40,12 @@ async fn check(
 
     let (B, B_cpu) = match quantized {
         Quantization::None => rand_gpu_buffer::<f32>(handle.device(), (K, N), true, false),
-        Quantization::Float16 => rand_gpu_buffer::<f32>(handle.device(), (K, N), true, false),
+        Quantization::Float16 => {
+            let (B, B_cpu) =
+                rand_quantized_gpu_buffer(handle.device(), (K, N), true, Quantization::Float16);
+            let b_dequant = float16_dequantize(&B_cpu.unwrap(), K, N);
+            (B, Some(b_dequant))
+        }
         Quantization::SInt8 => {
             let (B, B_cpu) =
                 rand_quantized_gpu_buffer(handle.device(), (K, N), true, Quantization::SInt8);
@@ -200,14 +204,7 @@ pub async fn test_harness(
             entry_point: "main",
         });
 
-    check(
-        &handle,
-        &pipeline,
-        workload.count(),
-        (M, N, K),
-        quantize_b,
-    )
-    .await;
+    check(&handle, &pipeline, workload.count(), (M, N, K), quantize_b).await;
 
     let (A, _) = rand_gpu_buffer::<f32>(handle.device(), (M, K), false, false);
 
@@ -315,9 +312,13 @@ async fn mm(
         }
     }
 
-    if let Some(prof) = profiler.as_mut() { prof.resolve(&mut encoder) }
+    if let Some(prof) = profiler.as_mut() {
+        prof.resolve(&mut encoder)
+    }
     handle.queue().submit(Some(encoder.finish()));
-    if let Some(prof) = profiler.as_mut() { prof.read_timestamps() }
+    if let Some(prof) = profiler.as_mut() {
+        prof.read_timestamps()
+    }
     to_cpu(readback, handle).await
 }
 

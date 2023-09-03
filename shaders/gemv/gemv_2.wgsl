@@ -25,7 +25,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>,
         var tmp = mat{{ colPerThread }}x4<f32>();
         for (var k = 0u; k < KD4; k++) {
           let a = A[k];
-          let bidx = k * N + cCol;
+          let bidx = k * (ND4 * 4u) + cCol;
             
           {%- for i in range(end=colPerThread) %}
               tmp[{{ i }}] += vec4<f32>(a.x) * B[bidx + {{ i }}u]; 
