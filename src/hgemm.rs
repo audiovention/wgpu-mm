@@ -13,6 +13,32 @@ pub fn insert_matrix_dims(context: &mut Context) -> (usize, usize, usize) {
     (M, N, K)
 }
 
+pub fn hgemm_1(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
+    tera.add_raw_template(
+        "hgemm_1.wgsl",
+        include_str!("../shaders/hgemm/hgemm_1.wgsl"),
+    )
+    .unwrap();
+    let workgroup_size_x = 8;
+    let workgroup_size_y = 8;
+    let workgroup_size_z = 1;
+    let workload = Workload::new(
+        WorkgroupCount(
+            Workload::ceil(M, workgroup_size_x as _) as _,
+            Workload::ceil(N, (workgroup_size_y * 2) as _) as _,
+            1,
+        ),
+        WorkgroupSize(workgroup_size_x, workgroup_size_y, workgroup_size_z),
+    );
+    println!("workload: {:?}", workload);
+    context.insert("workgroup_size_x", &workload.size().0);
+    context.insert("workgroup_size_y", &workload.size().1);
+    context.insert("workgroup_size_z", &workload.size().2);
+    let shader = tera.render("hgemm_1.wgsl", context).unwrap();
+    println!("shader: {}", shader);
+    (workload, shader)
+}
+
 pub fn hgemm_1v(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
     tera.add_raw_template(
         "hgemm_1v.wgsl",
@@ -38,6 +64,7 @@ pub fn hgemm_1v(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
     println!("shader: {}", shader);
     (workload, shader)
 }
+
 #[cfg(test)]
 mod tests {
     use crate::quant::Quantization;
@@ -59,5 +86,6 @@ mod tests {
         };
     }
 
-    hgemm_test!(test_hgemm_1v, hgemm_1v);
+    hgemm_test!(test_hgemm_1, hgemm_1);
+    //hgemm_test!(test_hgemm_1v, hgemm_1v);
 }

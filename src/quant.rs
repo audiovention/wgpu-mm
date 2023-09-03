@@ -63,9 +63,9 @@ pub fn float16_quantize(matrix: &[f32], K: usize, N: usize) -> Vec<u32> {
     let mut result = Vec::with_capacity(matrix.len() / 2);
 
     for floats in matrix.chunks(2) {
-        let float1 = f16::from_f32(floats[0]).to_bits() as u32;
-        let float2 = f16::from_f32(floats[1]).to_bits() as u32;
-        let packed = float2 << 16 | float1;
+        let float0 = f16::from_f32(floats[0]).to_bits() as u32;
+        let float1 = f16::from_f32(floats[1]).to_bits() as u32;
+        let packed = float1 << 16 | float0;
         result.push(packed);
     }
 
@@ -94,7 +94,6 @@ pub fn rand_quantized_gpu_buffer(
 ) -> (wgpu::Buffer, Option<Vec<u32>>) {
     let (M, N) = dims;
     let data = generate_weight_data::<f32>(M, N);
-    println!("B before quant\n {:?}", &data[..32]);
     let (quantized, _absmax) = match quantization {
         Quantization::SInt8 => sint8_quantize(&data, M, N),
         Quantization::Float16 => (float16_quantize(&data, M, N), 0.0),

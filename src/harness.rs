@@ -44,7 +44,6 @@ async fn check(
             let (B, B_cpu) =
                 rand_quantized_gpu_buffer(handle.device(), (K, N), true, Quantization::Float16);
             let b_dequant = float16_dequantize(&B_cpu.unwrap(), K, N);
-            println!("After dequant B\n {:?}", &b_dequant[..32]);
             (B, Some(b_dequant))
         }
         Quantization::SInt8 => {
@@ -90,7 +89,7 @@ async fn check(
             mae = diff;
         }
     }
-    let plen = 32;
+    let plen = 96;
     println!(
         "GPU\n{:?}\n...\n{:?}",
         &gpu_out[..plen],
