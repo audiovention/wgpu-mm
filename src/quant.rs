@@ -1,3 +1,4 @@
+use half::f16;
 use num_traits::{AsPrimitive, Float};
 use rand::{
     distributions::{uniform::SampleUniform, Standard},
@@ -56,10 +57,43 @@ pub fn sint8_dequantize(quantized_matrix: &[u32], absmax: f32, K: usize, N: usiz
     matrix
 }
 
+/// Quantize a matrix of 32 bit floats to a packed representation of 16 bit floats
+/// We pack 2 floats into a single u32
+pub fn float16_quantize(matrix: &[f32], K: usize, N: usize) -> Vec<u32> {
+    assert!(matrix.len() == K * N);
+    assert!(matrix.len() % 2 == 0);
+
+    let mut result = Vec::with_capacity(matrix.len() / 2);
+
+    for floats in matrix.chunks(2) {
+        let float1 = f16::from_f32(floats[0]).to_bits() as u32;
+        let float2 = f16::from_f32(floats[1]).to_bits() as u32;
+        let packed = float1 << 16 | float2;
+        result.push(packed);
+    }
+
+    result
+}
+
+//Dequantize a matrix of 16 bit floats to 32 bit floats
+pub fn float16_dequantize(matrix: &[u32], K: usize, N: usize) -> Vec<f32> {
+    let mut result = Vec::with_capacity(matrix.len() * 2);
+
+    for packed in matrix {
+        let float1 = f16::from_bits((packed >> 16) as u16).to_f32();
+        let float2 = f16::from_bits((packed & 0xFFFF) as u16).to_f32();
+        result.push(float1);
+        result.push(float2);
+    }
+
+    result
+}
+
 pub fn rand_quantized_gpu_buffer<F: Float + bytemuck::Pod + AsPrimitive<i32> + Debug>(
     device: &wgpu::Device,
     dims: (usize, usize),
     return_cpu: bool,
+    quantization: Quantization,
 ) -> (wgpu::Buffer, Option<Vec<u32>>)
 where
     Standard: Distribution<F>,
@@ -83,11 +117,10 @@ where
 #[cfg(test)]
 mod tests {
     #[test]
-    pub fn test_qdq() {
+    pub fn test_sint8_qdq() {
         let matrix = vec![
             0.1, -0.1, 0.5, -0.5, 1.0, -1.0, 1.2, -1.2, 0.1, -0.1, 0.5, -0.5, 1.0, -1.0, 1.2, -1.2,
         ];
-        println!("unquant: {:>12?}", matrix);
         let (quantized_matrix, absmax) = super::sint8_quantize(&matrix, 4, 4);
         assert_eq!(quantized_matrix.len(), 4);
         assert_eq!(
@@ -95,9 +128,28 @@ mod tests {
             vec![3409310987, 2172622442, 3409310987, 2172622442]
         );
         let dequantized_matrix = super::sint8_dequantize(&quantized_matrix, absmax, 4, 4);
-        println!("dequant: {:>12?}", dequantized_matrix);
         for i in 0..matrix.len() {
             assert!((matrix[i] - dequantized_matrix[i]).abs() < 0.01);
+        }
+    }
+
+    #[test]
+    pub fn test_float16_qdq() {
+        let matrix = vec![
+            0.1, -0.1, 0.5, -0.5, 1.0, -1.0, 1.2, -1.2, 0.1, -0.1, 0.5, -0.5, 1.0, -1.0, 1.2, -1.2,
+        ];
+        let quantized_matrix = super::float16_quantize(&matrix, 4, 4);
+        assert_eq!(quantized_matrix.len(), 8);
+        assert_eq!(
+            quantized_matrix,
+            vec![
+                778481254, 939571200, 1006681088, 1020116173, 778481254, 939571200, 1006681088,
+                1020116173
+            ]
+        );
+        let dequantized_matrix = super::float16_dequantize(&quantized_matrix, 4, 4);
+        for i in 0..matrix.len() {
+            assert!((matrix[i] - dequantized_matrix[i]).abs() < 0.001);
         }
     }
 }
