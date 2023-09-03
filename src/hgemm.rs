@@ -86,6 +86,6 @@ mod tests {
         };
     }
 
-    hgemm_test!(test_hgemm_1, hgemm_1);
-    //hgemm_test!(test_hgemm_1v, hgemm_1v);
+    //hgemm_test!(test_hgemm_1, hgemm_1);
+    hgemm_test!(test_hgemm_1v, hgemm_1v);
 }

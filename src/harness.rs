@@ -89,7 +89,7 @@ async fn check(
             mae = diff;
         }
     }
-    let plen = 96;
+    let plen = 32;
     println!(
         "GPU\n{:?}\n...\n{:?}",
         &gpu_out[..plen],
@@ -101,7 +101,12 @@ async fn check(
         &C_cpu[M * N - plen..]
     );
     println!("Max Absolute Error: {}", mae);
-    if mae > 1e-3 {
+    let acceptable_mae = match quantized {
+        Quantization::None => 1e-5,
+        Quantization::Float16 => 1e-3,
+        Quantization::SInt8 => 1e-3,
+    };
+    if mae > acceptable_mae {
         panic!("MAE too high");
     }
 }
