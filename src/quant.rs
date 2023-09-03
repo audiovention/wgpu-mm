@@ -65,7 +65,7 @@ pub fn float16_quantize(matrix: &[f32], K: usize, N: usize) -> Vec<u32> {
     for floats in matrix.chunks(2) {
         let float1 = f16::from_f32(floats[0]).to_bits() as u32;
         let float2 = f16::from_f32(floats[1]).to_bits() as u32;
-        let packed = float1 << 16 | float2;
+        let packed = float2 << 16 | float1;
         result.push(packed);
     }
 
@@ -77,8 +77,8 @@ pub fn float16_dequantize(matrix: &[u32], _K: usize, _N: usize) -> Vec<f32> {
     let mut result = Vec::with_capacity(matrix.len() * 2);
 
     for packed in matrix {
-        let float1 = f16::from_bits((packed >> 16) as u16).to_f32();
-        let float2 = f16::from_bits((packed & 0xFFFF) as u16).to_f32();
+        let float2 = f16::from_bits((packed >> 16) as u16).to_f32();
+        let float1 = f16::from_bits((packed & 0xFFFF) as u16).to_f32();
         result.push(float1);
         result.push(float2);
     }
@@ -94,7 +94,7 @@ pub fn rand_quantized_gpu_buffer(
 ) -> (wgpu::Buffer, Option<Vec<u32>>) {
     let (M, N) = dims;
     let data = generate_weight_data::<f32>(M, N);
-    println!("data: {:?}", &data[0..32]);
+    println!("data: {:?}", &data[..32]);
     let (quantized, _absmax) = match quantization {
         Quantization::SInt8 => sint8_quantize(&data, M, N),
         Quantization::Float16 => (float16_quantize(&data, M, N), 0.0),
@@ -136,16 +136,19 @@ mod tests {
         let matrix = vec![
             0.1, -0.1, 0.5, -0.5, 1.0, -1.0, 1.2, -1.2, 0.1, -0.1, 0.5, -0.5, 1.0, -1.0, 1.2, -1.2,
         ];
+        println!("{:?}", matrix);
         let quantized_matrix = super::float16_quantize(&matrix, 4, 4);
+        println!("{:?}", quantized_matrix);
         assert_eq!(quantized_matrix.len(), 8);
         assert_eq!(
             quantized_matrix,
             vec![
-                778481254, 939571200, 1006681088, 1020116173, 778481254, 939571200, 1006681088,
-                1020116173
+                2925932134, 3087022080, 3154131968, 3167567053, 2925932134, 3087022080, 3154131968,
+                3167567053
             ]
         );
         let dequantized_matrix = super::float16_dequantize(&quantized_matrix, 4, 4);
+        println!("{:?}", dequantized_matrix);
         for i in 0..matrix.len() {
             assert!((matrix[i] - dequantized_matrix[i]).abs() < 0.001);
         }

@@ -23,21 +23,22 @@ fn main(
     let ND4 = N / 4u;
     let cRow = global_id.x;
     let cCol = global_id.y;  
-    if (cRow < M && cCol < N / 4u) {
+    if (cRow < M && cCol < ND4) {
         var tmp = vec4<f32>();
         for (var k = 0u; k < K / 4u; k++) {
           let a = A[cRow * K / 4u + k];
-          let bidx = k * N + cCol;
+          
+          let bidx = k * N / 2u * 4u + cCol;
           let b0 = unpack4x16float(B[bidx]);
-          let b1 = unpack4x16float(B[bidx + N/2u]);
-          let b2 = unpack4x16float(B[bidx + 2u * N/2u]);
-          let b3 = unpack4x16float(B[bidx + 3u * N/2u]);
+          let b1 = unpack4x16float(B[bidx + (1u * N/2u)]);
+          let b2 = unpack4x16float(B[bidx + (2u * N/2u)]);
+          let b3 = unpack4x16float(B[bidx + (3u * N/2u)]);
 
           tmp += vec4<f32>(a.x) * b0;
           tmp += vec4<f32>(a.y) * b1;
           tmp += vec4<f32>(a.z) * b2;
           tmp += vec4<f32>(a.w) * b3;
         }
-        C[cRow * N / 4u + cCol] = tmp; 
+        C[cRow * N / 4u + cCol] = tmp;
     }
 }
