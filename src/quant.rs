@@ -94,7 +94,7 @@ pub fn rand_quantized_gpu_buffer(
 ) -> (wgpu::Buffer, Option<Vec<u32>>) {
     let (M, N) = dims;
     let data = generate_weight_data::<f32>(M, N);
-    println!("data: {:?}", &data[..32]);
+    println!("B before quant\n {:?}", &data[..32]);
     let (quantized, _absmax) = match quantization {
         Quantization::SInt8 => sint8_quantize(&data, M, N),
         Quantization::Float16 => (float16_quantize(&data, M, N), 0.0),
