@@ -20,8 +20,8 @@ The [best shader we have](https://github.com/FL33TW00D/wgpu-mm/tree/master/shade
 GEMV is a different problem since it is entirely memory-bound.
 
 We use the formula for bandwidth to be M (GB/s) = M=10-9.(m.n+m+n)*sizeof(scalar type)/T.
-For the problem size [1,384] @ [384, 51865] (Whisper logits GEMV), we can calculate the minimum possible runtime to be 1198266.33ns.
 
+For the problem size [1,384] @ [384, 51865] (Whisper logits GEMV), we can calculate the minimum possible runtime to be 1198266.33ns.
 The best kernel in here, gemv_2, hits ~1300000ns.
 
 ## Read More 
