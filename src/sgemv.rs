@@ -43,7 +43,7 @@ pub fn gemv_2(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
     let workgroup_size_x = 8;
     let workgroup_size_y = 4;
     let workgroup_size_z = 1;
-    let colPerThread = 4;
+    let colPerThread = 2;
 
     let wgs = WorkgroupSize(workgroup_size_x as _, workgroup_size_y, workgroup_size_z);
 
