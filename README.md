@@ -1,9 +1,7 @@
 # wgpu-mm
 
 How many flops can we squeeze out of wgpu?
-
-This is basically a direct port of Bram Wasti's blog post [here](https://jott.live/markdown/webgpu_safari).
-All credits to him.
+The test harness is inspired by Bram Wasti's work [here](https://jott.live/markdown/webgpu_safari).
 
 ## GEMM
 
@@ -21,8 +19,11 @@ GEMV is a different problem since it is entirely memory-bound.
 
 We use the formula for bandwidth to be M (GB/s) = M=10-9.(m.n+m+n)*sizeof(scalar type)/T.
 
-For the problem size [1,384] @ [384, 51865] (Whisper logits GEMV), we can calculate the minimum possible runtime to be 1198266.33ns.
+For the problem size [1,384] @ [384, 51868] (Whisper logits GEMV), we can calculate the minimum possible runtime to be 1198266.33ns.
 The best kernel in here, gemv_2, hits ~1300000ns.
+
+As it is memory bound, lower precision is extremely important.
+We can see our HGEMV can perform the same [1,384] @ [384, 51868] in ~694500ns, ~2x faster.
 
 ## Read More 
 
