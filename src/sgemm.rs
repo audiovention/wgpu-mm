@@ -13,9 +13,12 @@ pub fn insert_matrix_dims(context: &mut Context) -> (usize, usize, usize) {
     (M, N, K)
 }
 
-pub fn gemm_1(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
-    tera.add_raw_template("gemm_1.wgsl", include_str!("../shaders/gemm/gemm_1.wgsl"))
-        .unwrap();
+pub fn sgemm_1(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
+    tera.add_raw_template(
+        "sgemm_1.wgsl",
+        include_str!("../shaders/sgemm/sgemm_1.wgsl"),
+    )
+    .unwrap();
     let workgroup_size_x = 16;
     let workgroup_size_y = 16;
     let workgroup_size_z = 1;
@@ -26,32 +29,42 @@ pub fn gemm_1(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
     context.insert("workgroup_size_x", &workload.size().0);
     context.insert("workgroup_size_y", &workload.size().1);
     context.insert("workgroup_size_z", &workload.size().2);
-    let shader = tera.render("gemm_1.wgsl", &context).unwrap();
+    let shader = tera.render("sgemm_1.wgsl", context).unwrap();
     println!("shader: {}", shader);
     (workload, shader)
 }
 
-pub fn gemm_1v(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
-    tera.add_raw_template("gemm_1v.wgsl", include_str!("../shaders/gemm/gemm_1v.wgsl"))
-        .unwrap();
-    let workgroup_size_x = 16;
-    let workgroup_size_y = 16 / 4;
+pub fn sgemm_1v(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
+    tera.add_raw_template(
+        "sgemm_1v.wgsl",
+        include_str!("../shaders/sgemm/sgemm_1v.wgsl"),
+    )
+    .unwrap();
+    let workgroup_size_x = 8;
+    let workgroup_size_y = 8;
     let workgroup_size_z = 1;
     let workload = Workload::new(
-        WorkgroupCount(Workload::ceil(M, 16) as _, Workload::ceil(N, 16) as _, 1),
+        WorkgroupCount(
+            Workload::ceil(M, workgroup_size_x as _) as _,
+            Workload::ceil(N, (workgroup_size_y * 4) as _) as _,
+            1,
+        ),
         WorkgroupSize(workgroup_size_x, workgroup_size_y, workgroup_size_z),
     );
     context.insert("workgroup_size_x", &workload.size().0);
     context.insert("workgroup_size_y", &workload.size().1);
     context.insert("workgroup_size_z", &workload.size().2);
-    let shader = tera.render("gemm_1v.wgsl", &context).unwrap();
+    let shader = tera.render("sgemm_1v.wgsl", context).unwrap();
     println!("shader: {}", shader);
     (workload, shader)
 }
 
-pub fn gemm_2(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
-    tera.add_raw_template("gemm_2.wgsl", include_str!("../shaders/gemm/gemm_2.wgsl"))
-        .unwrap();
+pub fn sgemm_2(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
+    tera.add_raw_template(
+        "sgemm_2.wgsl",
+        include_str!("../shaders/sgemm/sgemm_2.wgsl"),
+    )
+    .unwrap();
     let workgroup_size_x = 256;
     let workgroup_size_y = 1;
     let workgroup_size_z = 1;
@@ -62,13 +75,16 @@ pub fn gemm_2(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
     context.insert("workgroup_size_x", &workload.size().0);
     context.insert("workgroup_size_y", &workload.size().1);
     context.insert("workgroup_size_z", &workload.size().2);
-    let shader = tera.render("gemm_2.wgsl", &context).unwrap();
+    let shader = tera.render("sgemm_2.wgsl", context).unwrap();
     (workload, shader)
 }
 
-pub fn gemm_3(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
-    tera.add_raw_template("gemm_3.wgsl", include_str!("../shaders/gemm/gemm_3.wgsl"))
-        .unwrap();
+pub fn sgemm_3(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
+    tera.add_raw_template(
+        "sgemm_3.wgsl",
+        include_str!("../shaders/sgemm/sgemm_3.wgsl"),
+    )
+    .unwrap();
     let BLOCKSIZE = 16;
     context.insert("BLOCKSIZE", &BLOCKSIZE);
     let workgroup_size_x = (BLOCKSIZE * BLOCKSIZE) / 4;
@@ -85,13 +101,16 @@ pub fn gemm_3(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
     context.insert("workgroup_size_x", &workload.size().0);
     context.insert("workgroup_size_y", &workload.size().1);
     context.insert("workgroup_size_z", &workload.size().2);
-    let shader = tera.render("gemm_3.wgsl", &context).unwrap();
+    let shader = tera.render("sgemm_3.wgsl", context).unwrap();
     (workload, shader)
 }
 
-pub fn gemm_4(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
-    tera.add_raw_template("gemm_4.wgsl", include_str!("../shaders/gemm/gemm_4.wgsl"))
-        .unwrap();
+pub fn sgemm_4(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
+    tera.add_raw_template(
+        "sgemm_4.wgsl",
+        include_str!("../shaders/sgemm/sgemm_4.wgsl"),
+    )
+    .unwrap();
     let BM = 16;
     let BN = 16;
     let BK = 8;
@@ -113,14 +132,17 @@ pub fn gemm_4(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
     context.insert("workgroup_size_x", &workload.size().0);
     context.insert("workgroup_size_y", &workload.size().1);
     context.insert("workgroup_size_z", &workload.size().2);
-    let shader = tera.render("gemm_4.wgsl", &context).unwrap();
+    let shader = tera.render("sgemm_4.wgsl", context).unwrap();
     println!("shader: {}", shader);
     (workload, shader)
 }
 
-pub fn gemm_5(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
-    tera.add_raw_template("gemm_5.wgsl", include_str!("../shaders/gemm/gemm_5.wgsl"))
-        .unwrap();
+pub fn sgemm_5(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
+    tera.add_raw_template(
+        "sgemm_5.wgsl",
+        include_str!("../shaders/sgemm/sgemm_5.wgsl"),
+    )
+    .unwrap();
     let BM = 32;
     let BN = 32;
     let BK = 16;
@@ -144,13 +166,13 @@ pub fn gemm_5(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
     context.insert("workgroup_size_x", &workload.size().0);
     context.insert("workgroup_size_y", &workload.size().1);
     context.insert("workgroup_size_z", &workload.size().2);
-    let shader = tera.render("gemm_5.wgsl", &context).unwrap();
+    let shader = tera.render("sgemm_5.wgsl", context).unwrap();
     println!("shader: {}", shader);
     (workload, shader)
 }
 
-pub fn gemm_tf(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
-    tera.add_raw_template("tfjs.wgsl", include_str!("../shaders/gemm/tfjs.wgsl"))
+pub fn sgemm_tf(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
+    tera.add_raw_template("tfjs.wgsl", include_str!("../shaders/sgemm/tfjs.wgsl"))
         .unwrap();
 
     let TILE_DIM = 32;
@@ -188,36 +210,37 @@ pub fn gemm_tf(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
     context.insert("workgroup_size_y", &workload.size().1);
     context.insert("workgroup_size_z", &workload.size().2);
 
-    let shader = tera.render("tfjs.wgsl", &context).unwrap();
+    let shader = tera.render("tfjs.wgsl", context).unwrap();
     println!("shader: {}", shader);
     (workload, shader)
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::quant::Quantization;
     use crate::test_harness;
 
     use super::*;
 
-    macro_rules! gemm_test {
-        ($test_name:ident, $gemm_function:ident) => {
+    macro_rules! sgemm_test {
+        ($test_name:ident, $sgemm_function:ident) => {
             #[tokio::test]
             pub async fn $test_name() {
                 let _ = env_logger::builder().is_test(true).try_init();
                 let mut tera = tera::Tera::default();
                 let mut context = tera::Context::new();
                 let dims = insert_matrix_dims(&mut context);
-                let (workload, shader) = $gemm_function(&mut tera, &mut context);
-                test_harness(workload, shader, dims, false).await;
+                let (workload, shader) = $sgemm_function(&mut tera, &mut context);
+                test_harness(workload, shader, dims, Quantization::None).await;
             }
         };
     }
 
-    gemm_test!(test_gemm_1, gemm_1);
-    gemm_test!(test_gemm_1v, gemm_1v);
-    gemm_test!(test_gemm_2, gemm_2);
-    gemm_test!(test_gemm_3, gemm_3);
-    gemm_test!(test_gemm_4, gemm_4);
-    gemm_test!(test_gemm_5, gemm_5);
-    gemm_test!(test_gemm_tf, gemm_tf);
+    sgemm_test!(test_sgemm_1, sgemm_1);
+    sgemm_test!(test_sgemm_1v, sgemm_1v);
+    sgemm_test!(test_sgemm_2, sgemm_2);
+    sgemm_test!(test_sgemm_3, sgemm_3);
+    sgemm_test!(test_sgemm_4, sgemm_4);
+    sgemm_test!(test_sgemm_5, sgemm_5);
+    sgemm_test!(test_sgemm_tf, sgemm_tf);
 }

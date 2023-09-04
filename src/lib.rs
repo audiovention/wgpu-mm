@@ -1,11 +1,13 @@
 #![feature(int_roundings)]
 #![allow(non_snake_case)]
-pub mod gemm;
-pub mod gemv;
 mod handle;
 mod harness;
+pub mod hgemm;
+pub mod hgemv;
 mod profiler;
 pub mod quant;
+pub mod sgemm;
+pub mod sgemv;
 mod workload;
 
 pub use handle::*;

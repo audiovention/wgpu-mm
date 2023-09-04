@@ -18,7 +18,7 @@ num-traits = "0.2.15"
 rand = "0.8.5"
 tera = "1.18.1"
 tokio = { version = "1.26.0", features = ["full"] }
-half = { version = "2.2.1", features = ["bytemuck", "num-traits"] }
+half = { version = "2.2.1", features = ["bytemuck", "rand_distr", "num-traits"] }
 env_logger = "0.10.0"
 matrixmultiply = "0.3.2"
 derive-new = "0.5.9"

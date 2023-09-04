@@ -9,8 +9,8 @@ use rand::{
 use wgpu::util::DeviceExt;
 
 use crate::{
-    gemv::ABSMAX,
-    quant::{rand_quantized_gpu_buffer, sint8_dequantize},
+    quant::{float16_dequantize, rand_quantized_gpu_buffer, sint8_dequantize, Quantization},
+    sgemv::ABSMAX,
     GPUHandle, Profiler, WorkgroupCount, Workload,
 };
 
@@ -32,18 +32,26 @@ async fn check(
     pipeline: &wgpu::ComputePipeline,
     wgc: &WorkgroupCount,
     dims: (usize, usize, usize),
-    quantized: bool,
+    quantized: Quantization,
 ) {
     let (M, N, K) = dims;
 
     let (A, A_cpu) = rand_gpu_buffer::<f32>(handle.device(), (M, K), true, false);
 
-    let (B, B_cpu) = if quantized {
-        let (B, B_cpu) = rand_quantized_gpu_buffer::<f32>(handle.device(), (K, N), true);
-        let b_dequant = sint8_dequantize(&B_cpu.unwrap(), ABSMAX, K, N);
-        (B, Some(b_dequant))
-    } else {
-        rand_gpu_buffer::<f32>(handle.device(), (K, N), true, false)
+    let (B, B_cpu) = match quantized {
+        Quantization::None => rand_gpu_buffer::<f32>(handle.device(), (K, N), true, false),
+        Quantization::Float16 => {
+            let (B, B_cpu) =
+                rand_quantized_gpu_buffer(handle.device(), (K, N), true, Quantization::Float16);
+            let b_dequant = float16_dequantize(&B_cpu.unwrap(), K, N);
+            (B, Some(b_dequant))
+        }
+        Quantization::SInt8 => {
+            let (B, B_cpu) =
+                rand_quantized_gpu_buffer(handle.device(), (K, N), true, Quantization::SInt8);
+            let b_dequant = sint8_dequantize(&B_cpu.unwrap(), ABSMAX, K, N);
+            (B, Some(b_dequant))
+        }
     };
 
     let (C, C_cpu) = empty_buffer::<f32>(handle.device(), (M, N), true);
@@ -72,7 +80,7 @@ async fn check(
             ],
         });
 
-    let gpu_out = mm(&handle, &pipeline, &bind_group, &wgc, 1, &C, None, dims).await;
+    let gpu_out = mm(handle, pipeline, &bind_group, wgc, 1, &C, None, dims).await;
 
     let mut mae = 0.0;
     for i in 0..M * N {
@@ -93,7 +101,12 @@ async fn check(
         &C_cpu[M * N - plen..]
     );
     println!("Max Absolute Error: {}", mae);
-    if mae > 1e-3 {
+    let acceptable_mae = match quantized {
+        Quantization::None => 1e-5,
+        Quantization::Float16 => 1e-3,
+        Quantization::SInt8 => 1e-3,
+    };
+    if mae > acceptable_mae {
         panic!("MAE too high");
     }
 }
@@ -173,7 +186,7 @@ pub async fn test_harness(
     workload: Workload,
     shader: String,
     dims: (usize, usize, usize),
-    quantize_b: bool,
+    quantize_b: Quantization,
 ) {
     let handle = GPUHandle::new().await.unwrap();
     let (M, N, K) = dims;
@@ -196,14 +209,20 @@ pub async fn test_harness(
             entry_point: "main",
         });
 
-    check(&handle, &pipeline, &workload.count(), (M, N, K), quantize_b).await;
+    check(&handle, &pipeline, workload.count(), (M, N, K), quantize_b).await;
 
     let (A, _) = rand_gpu_buffer::<f32>(handle.device(), (M, K), false, false);
-    let B = if quantize_b {
-        rand_quantized_gpu_buffer::<f32>(handle.device(), (K, N), false).0
-    } else {
-        rand_gpu_buffer::<f32>(handle.device(), (K, N), false, false).0
+
+    let B = match quantize_b {
+        Quantization::None => rand_gpu_buffer::<f32>(handle.device(), (K, N), false, false).0,
+        Quantization::SInt8 => {
+            rand_quantized_gpu_buffer(handle.device(), (K, N), false, Quantization::SInt8).0
+        }
+        Quantization::Float16 => {
+            rand_quantized_gpu_buffer(handle.device(), (K, N), false, Quantization::Float16).0
+        }
     };
+
     let (C, _) = rand_gpu_buffer::<f32>(handle.device(), (M, N), false, true);
 
     let bind_group_entries = [
@@ -237,7 +256,7 @@ pub async fn test_harness(
         &handle,
         &pipeline,
         &bind_group,
-        &wgc,
+        wgc,
         N_WARMUP,
         &C,
         None,
@@ -251,7 +270,7 @@ pub async fn test_harness(
         &handle,
         &pipeline,
         &bind_group,
-        &wgc,
+        wgc,
         N_REPEATS as _,
         &C,
         Some(&mut profiler),
@@ -280,8 +299,8 @@ async fn mm(
                 label: None,
                 timestamp_writes: None,
             });
-            cpass.set_bind_group(0, &bind_group, &[]);
-            cpass.set_pipeline(&pipeline);
+            cpass.set_bind_group(0, bind_group, &[]);
+            cpass.set_pipeline(pipeline);
             cpass.dispatch_workgroups(workgroup_count.0, workgroup_count.1, workgroup_count.2);
         }
         for _ in 0..N_REPEATS {
@@ -292,16 +311,20 @@ async fn mm(
                     .as_mut()
                     .map(|prof| prof.create_timestamp_queries(dims.0 * dims.1 * dims.2)),
             });
-            cpass.set_bind_group(0, &bind_group, &[]);
-            cpass.set_pipeline(&pipeline);
+            cpass.set_bind_group(0, bind_group, &[]);
+            cpass.set_pipeline(pipeline);
             cpass.dispatch_workgroups(workgroup_count.0, workgroup_count.1, workgroup_count.2);
         }
     }
 
-    profiler.as_mut().map(|prof| prof.resolve(&mut encoder));
+    if let Some(prof) = profiler.as_mut() {
+        prof.resolve(&mut encoder)
+    }
     handle.queue().submit(Some(encoder.finish()));
-    profiler.as_mut().map(|prof| prof.read_timestamps());
-    to_cpu(&readback, handle).await
+    if let Some(prof) = profiler.as_mut() {
+        prof.read_timestamps()
+    }
+    to_cpu(readback, handle).await
 }
 
 async fn to_cpu(buffer: &wgpu::Buffer, handle: &GPUHandle) -> Vec<f32> {

@@ -12,32 +12,31 @@ var<storage, read_write> C: array<vec4<f32>>;
 fn main(@builtin(global_invocation_id) global_id: vec3<u32>, 
         @builtin(workgroup_id) group_id: vec3<u32>,
         @builtin(local_invocation_id) local_id: vec3<u32>,
-        @builtin(local_invocation_index) local_invocation_index: u32,
+        @builtin(local_invocation_index) local_index: u32,
         @builtin(num_workgroups) num_workgroups: vec3<u32>) {
     let M = {{ M }}u;
     let N = {{ N }}u;
     let K = {{ K }}u;
-    let ND4 = N / 4u;
+    let ND4 = {{ ND4 }}u;
+    let KD4 = {{ KD4 }}u;
 
-    let cCol = global_id.x * 2u;  
+    let cCol = (group_id.x * {{ workgroup_size_x * workgroup_size_y }}u + local_index) * {{ colPerThread }}u; 
     if (cCol < ND4) {
-        var tmp0 = vec4<f32>();
-        var tmp1 = vec4<f32>();
-        for (var k = 0u; k < K / 4u; k++) {
+        var tmp = mat{{ colPerThread }}x4<f32>();
+        for (var k = 0u; k < KD4; k++) {
           let a = A[k];
-          let bidx = k * N + cCol;
-          tmp0 += vec4<f32>(a.x) * B[bidx]; 
-          tmp0 += vec4<f32>(a.y) * B[bidx + (1u * ND4)]; 
-          tmp0 += vec4<f32>(a.z) * B[bidx + (2u * ND4)];
-          tmp0 += vec4<f32>(a.w) * B[bidx + (3u * ND4)];
-
-          tmp1 += vec4<f32>(a.x) * B[bidx + 1u];
-          tmp1 += vec4<f32>(a.y) * B[bidx + (1u * ND4) + 1u];
-          tmp1 += vec4<f32>(a.z) * B[bidx + (2u * ND4) + 1u];
-          tmp1 += vec4<f32>(a.w) * B[bidx + (3u * ND4) + 1u];
-
+          let bidx = k * (ND4 * 4u) + cCol;
+            
+          {%- for i in range(end=colPerThread) %}
+              tmp[{{ i }}] += vec4<f32>(a.x) * B[bidx + {{ i }}u]; 
+              tmp[{{ i }}] += vec4<f32>(a.y) * B[bidx + ND4 + {{ i }}u]; 
+              tmp[{{ i }}] += vec4<f32>(a.z) * B[bidx + (2u * ND4) + {{ i }}u];
+              tmp[{{ i }}] += vec4<f32>(a.w) * B[bidx + (3u * ND4) + {{ i }}u];
+          {% endfor -%}
         }
-        C[cCol] = tmp0;
-        C[cCol + 1u] = tmp1;
+
+        {% for i in range(end=colPerThread) %}
+            C[cCol + {{ i }}u] = tmp[{{ i }}];
+        {%- endfor %}
     }
 }
