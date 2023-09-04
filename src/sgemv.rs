@@ -41,7 +41,7 @@ pub fn gemv_2(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
     tera.add_raw_template("gemv_2.wgsl", include_str!("../shaders/gemv/gemv_2.wgsl"))
         .unwrap();
     let workgroup_size_x = 8;
-    let workgroup_size_y = 1;
+    let workgroup_size_y = 4;
     let workgroup_size_z = 1;
     let colPerThread = 4;
 

@@ -23,10 +23,10 @@ pub fn hgemv_1(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
         include_str!("../shaders/hgemv/hgemv_1.wgsl"),
     )
     .unwrap();
-    let workgroup_size_x = 16;
-    let workgroup_size_y = 1;
+    let workgroup_size_x = 8;
+    let workgroup_size_y = 8;
     let workgroup_size_z = 1;
-    let colPerThread = 2;
+    let colPerThread = 4;
 
     let wgs = WorkgroupSize(workgroup_size_x as _, workgroup_size_y, workgroup_size_z);
 

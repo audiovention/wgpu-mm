@@ -15,7 +15,11 @@ fn unpack4x16float(x: vec2<u32>) -> vec4<f32> {
 
 @compute @workgroup_size({{ workgroup_size_x }}, {{ workgroup_size_y }}, {{ workgroup_size_z }})
 fn main(
-  @builtin(global_invocation_id) global_id: vec3<u32>
+  @builtin(global_invocation_id) global_id: vec3<u32>,
+  @builtin(local_invocation_id) local_id: vec3<u32>,
+  @builtin(local_invocation_index) local_index: u32,
+  @builtin(workgroup_id) group_id: vec3<u32>,
+  @builtin(num_workgroups) num_groups: vec3<u32>,
 ) {
     let M = {{ M }}u;
     let N = {{ N }}u;
@@ -23,7 +27,7 @@ fn main(
     let ND4 = {{ ND4 }}u;
     let KD4 = {{ KD4 }}u;
 
-    let cCol = global_id.x * {{ colPerThread }}u; 
+    let cCol = (group_id.x * {{ workgroup_size_x * workgroup_size_y }}u + local_index) * {{ colPerThread }}u; 
     if (cCol < ND4) {
         var tmp = mat{{colPerThread}}x4<f32>();
         for (var k = 0u; k < KD4; k++) {
