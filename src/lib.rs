@@ -3,6 +3,7 @@
 mod handle;
 mod harness;
 pub mod hgemm;
+pub mod hgemv;
 mod profiler;
 pub mod quant;
 pub mod sgemm;
