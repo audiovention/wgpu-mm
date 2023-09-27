@@ -5,6 +5,7 @@ mod harness;
 pub mod hgemm;
 pub mod hgemv;
 mod profiler;
+pub mod qgemm;
 pub mod qgemv;
 pub mod quant;
 pub mod sgemm;
