@@ -23,23 +23,18 @@ fn main(
 
     let cCol = (group_id.x * {{ workgroup_size_x * workgroup_size_y }}u + local_index) * {{ colPerThread }}u; 
     if (cCol < ND4) {
-        var tmp = mat{{colPerThread}}x4<f32>();
+        var tmp = vec4<f32>();
         for (var k = 0u; k < KD4; k++) {
           let a = A[k];
           let bidx = (k * ND4 * 4u) + cCol;
 
-          {% for i in range(end=colPerThread) %}
-            tmp[{{ i }}] += vec4<f32>(a.x) * unpack4x8snorm(B[bidx + {{ i }}u]);
-            tmp[{{ i }}] += vec4<f32>(a.y) * unpack4x8snorm(B[bidx + ({{ i }}u + (1u * ND4))]);
-            tmp[{{ i }}] += vec4<f32>(a.z) * unpack4x8snorm(B[bidx + ({{ i }}u + (2u * ND4))]);
-            tmp[{{ i }}] += vec4<f32>(a.w) * unpack4x8snorm(B[bidx + ({{ i }}u + (3u * ND4))]);
-          {% endfor %}
+            tmp += vec4<f32>(a.x) * unpack4x8snorm(B[bidx]) * {{ scale }};
+            tmp += vec4<f32>(a.y) * unpack4x8snorm(B[bidx + (1u * ND4)]) * {{ scale }};
+            tmp += vec4<f32>(a.z) * unpack4x8snorm(B[bidx + (2u * ND4)]) * {{ scale }};
+            tmp += vec4<f32>(a.w) * unpack4x8snorm(B[bidx + (3u * ND4)]) * {{ scale }};
         }
-        {% for i in range(end=colPerThread) %}
-          C[cCol + {{ i }}u] = tmp[{{ i }}];
-        {% endfor %} 
+        C[cCol] = tmp;
     }
-
 }
 
 

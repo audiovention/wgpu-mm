@@ -3,8 +3,8 @@ use tera::{Context, Tera};
 use crate::{WorkgroupCount, WorkgroupSize, Workload};
 
 const M: usize = 1;
-const N: usize = 51868;
-const K: usize = 384;
+const N: usize = 1024;
+const K: usize = 1024;
 pub const ABSMAX: f32 = 0.2; //Data ranges from -10 to 10, divide by 50
 
 pub fn insert_matrix_dims(context: &mut Context) -> (usize, usize, usize) {

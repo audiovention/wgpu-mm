@@ -3,8 +3,8 @@ use tera::{Context, Tera};
 use crate::{WorkgroupCount, WorkgroupSize, Workload};
 
 const M: usize = 1;
-const N: usize = 1024;
-const K: usize = 1024;
+const N: usize = 51868;
+const K: usize = 384;
 pub const ABSMAX: f32 = 0.2; //Data ranges from -10 to 10, divide by 50
 
 pub fn insert_matrix_dims(context: &mut Context) -> (usize, usize, usize) {
@@ -132,17 +132,19 @@ pub fn qgemv_1(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
     let workgroup_size_x = 8;
     let workgroup_size_y = 8;
     let workgroup_size_z = 1;
-    let colPerThread = 2;
+    let colPerThread = 1;
 
     let wgs = WorkgroupSize(workgroup_size_x as _, workgroup_size_y, workgroup_size_z);
 
     let requiredGroups = Workload::ceil(N / (colPerThread * 4), wgs.total() as usize);
 
     let workload = Workload::new(WorkgroupCount(requiredGroups as _, 1, 1), wgs);
+    println!("Workload: {:?}", workload);
     context.insert("colPerThread", &colPerThread);
     context.insert("workgroup_size_x", &workload.size().0);
     context.insert("workgroup_size_y", &workload.size().1);
     context.insert("workgroup_size_z", &workload.size().2);
+    context.insert("scale", &ABSMAX);
     let shader = tera.render("qgemv_1.wgsl", context).unwrap();
     println!("Shader: {}", shader);
     (workload, shader)
