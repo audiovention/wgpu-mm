@@ -130,17 +130,23 @@ pub fn qgemv_1(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
     tera.add_raw_template("qgemv_1.wgsl", include_str!("../shaders/gemv/qgemv_1.wgsl"))
         .unwrap();
     let workgroup_size_x = 8;
-    let workgroup_size_y = 1;
+    let workgroup_size_y = 8;
     let workgroup_size_z = 1;
-    let workload = Workload::new(
-        WorkgroupCount(Workload::ceil(N, workgroup_size_x * 4) as _, 1, 1),
-        WorkgroupSize(workgroup_size_x as _, workgroup_size_y, workgroup_size_z),
-    );
+    let colPerThread = 1;
+
+    let wgs = WorkgroupSize(workgroup_size_x as _, workgroup_size_y, workgroup_size_z);
+
+    let requiredGroups = Workload::ceil(N / (colPerThread * 4), wgs.total() as usize);
+
+    let workload = Workload::new(WorkgroupCount(requiredGroups as _, 1, 1), wgs);
+    println!("Workload: {:?}", workload);
+    context.insert("colPerThread", &colPerThread);
     context.insert("workgroup_size_x", &workload.size().0);
     context.insert("workgroup_size_y", &workload.size().1);
     context.insert("workgroup_size_z", &workload.size().2);
-    context.insert("absmax", &ABSMAX);
+    context.insert("scale", &ABSMAX);
     let shader = tera.render("qgemv_1.wgsl", context).unwrap();
+    println!("Shader: {}", shader);
     (workload, shader)
 }
 

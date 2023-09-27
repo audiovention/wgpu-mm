@@ -7,35 +7,34 @@ var<storage, read> B: array<u32>;
 @group(0) @binding(2)
 var<storage, read_write> C: array<vec4<f32>>;
 
-@compute @workgroup_size({{ workgroup_size_x }}, {{ workgroup_size_y }})
-fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
-    let left_offset = global_id.y * {{ (K / 4) }}u; 
-    let right_offset = global_id.y * {{ (K * N) / 4 }}u;
-    let output_offset = global_id.y * {{ (N / 4) }}u;
-    
-    var result = vec4<f32>(0.0);
+@compute @workgroup_size({{ workgroup_size_x }}, {{ workgroup_size_y }}, {{ workgroup_size_z }})
+fn main(
+  @builtin(global_invocation_id) global_id: vec3<u32>,
+  @builtin(local_invocation_id) local_id: vec3<u32>,
+  @builtin(local_invocation_index) local_index: u32,
+  @builtin(workgroup_id) group_id: vec3<u32>,
+  @builtin(num_workgroups) num_groups: vec3<u32>,
+) {
+    let M = {{ M }}u;
+    let N = {{ N }}u;
+    let K = {{ K }}u;
+    let ND4 = {{ ND4 }}u;
+    let KD4 = {{ KD4 }}u;
 
-    for(var k: u32 = 0u; k < {{ K / 4 }}u; k = k + 1u) {
-        let index_left = left_offset + k; 
-        let index_right = right_offset + global_id.x + (k * {{ N }}u);
+    let cCol = (group_id.x * {{ workgroup_size_x * workgroup_size_y }}u + local_index) * {{ colPerThread }}u; 
+    if (cCol < ND4) {
+        var tmp = vec4<f32>();
+        for (var k = 0u; k < KD4; k++) {
+          let a = A[k];
+          let bidx = (k * ND4 * 4u) + cCol;
 
-        let left = A[index_left];
-
-        {% for i in range(end = 4) %}
-            let right_{{ i }} = unpack4x8snorm(B[index_right + ({{ i }}u * {{ (N / 4)}}u)]) * {{ absmax }}f;
-        {% endfor %}
-
-        {% for i in range(end = 4) %}
-            result[{{ i }}] += dot(left, vec4<f32>(
-            {%- for j in range(end = 4) -%}
-                right_{{ j }}[{{ i }}],
-            {%- endfor -%}
-            ));
-        {% endfor %}
-
+            tmp += vec4<f32>(a.x) * unpack4x8snorm(B[bidx]) * {{ scale }};
+            tmp += vec4<f32>(a.y) * unpack4x8snorm(B[bidx + (1u * ND4)]) * {{ scale }};
+            tmp += vec4<f32>(a.z) * unpack4x8snorm(B[bidx + (2u * ND4)]) * {{ scale }};
+            tmp += vec4<f32>(a.w) * unpack4x8snorm(B[bidx + (3u * ND4)]) * {{ scale }};
+        }
+        C[cCol] = tmp;
     }
-    
-    C[output_offset + global_id.x] = result; 
 }
 
 
