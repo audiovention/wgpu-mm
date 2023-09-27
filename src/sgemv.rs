@@ -126,30 +126,6 @@ pub fn gemv_4(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
     (workload, shader)
 }
 
-pub fn qgemv_1(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
-    tera.add_raw_template("qgemv_1.wgsl", include_str!("../shaders/gemv/qgemv_1.wgsl"))
-        .unwrap();
-    let workgroup_size_x = 8;
-    let workgroup_size_y = 8;
-    let workgroup_size_z = 1;
-    let colPerThread = 1;
-
-    let wgs = WorkgroupSize(workgroup_size_x as _, workgroup_size_y, workgroup_size_z);
-
-    let requiredGroups = Workload::ceil(N / (colPerThread * 4), wgs.total() as usize);
-
-    let workload = Workload::new(WorkgroupCount(requiredGroups as _, 1, 1), wgs);
-    println!("Workload: {:?}", workload);
-    context.insert("colPerThread", &colPerThread);
-    context.insert("workgroup_size_x", &workload.size().0);
-    context.insert("workgroup_size_y", &workload.size().1);
-    context.insert("workgroup_size_z", &workload.size().2);
-    context.insert("scale", &ABSMAX);
-    let shader = tera.render("qgemv_1.wgsl", context).unwrap();
-    println!("Shader: {}", shader);
-    (workload, shader)
-}
-
 #[cfg(test)]
 mod tests {
     use crate::quant::Quantization;
@@ -169,16 +145,6 @@ mod tests {
                 test_harness(workload, shader, dims, Quantization::None).await;
             }
         };
-    }
-
-    #[tokio::test]
-    pub async fn test_qgemv_1() {
-        let _ = env_logger::builder().is_test(true).try_init();
-        let mut tera = tera::Tera::default();
-        let mut context = tera::Context::new();
-        let dims = insert_matrix_dims(&mut context);
-        let (workload, shader) = qgemv_1(&mut tera, &mut context);
-        test_harness(workload, shader, dims, Quantization::SInt8).await;
     }
 
     gemv_test!(test_gemv_1, gemv_1);

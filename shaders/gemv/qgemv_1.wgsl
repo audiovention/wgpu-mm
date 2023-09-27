@@ -21,7 +21,7 @@ fn main(
     let ND4 = {{ ND4 }}u;
     let KD4 = {{ KD4 }}u;
 
-    let cCol = (group_id.x * {{ workgroup_size_x * workgroup_size_y }}u + local_index) * {{ colPerThread }}u; 
+    let cCol = (group_id.x * {{ workgroup_size_x * workgroup_size_y }}u + local_index); 
     if (cCol < ND4) {
         var tmp = vec4<f32>();
         for (var k = 0u; k < KD4; k++) {
