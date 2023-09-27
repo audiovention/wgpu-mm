@@ -28,3 +28,8 @@ We can see our HGEMV can perform the same [1,384] @ [384, 51868] in ~694500ns, ~
 ## Read More 
 
 [NVIDIA Performance Guide](https://docs.nvidia.com/deeplearning/performance/dl-performance-gpu-background/index.html#gpu-perf)
+
+## TODO
+[ ] - F16 & Sint8 tiled
+[ ] - 4bit experiments
+[ ] - Flash Attention
