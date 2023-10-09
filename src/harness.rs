@@ -9,7 +9,10 @@ use rand::{
 use wgpu::util::DeviceExt;
 
 use crate::{
-    quant::{float16_dequantize, rand_quantized_gpu_buffer, sint8_dequantize, Quantization},
+    quant::{
+        float16_dequantize, rand_quantized_gpu_buffer, sint4_dequantize, sint8_dequantize,
+        Quantization,
+    },
     sgemv::ABSMAX,
     GPUHandle, Profiler, WorkgroupCount, Workload,
 };
@@ -50,6 +53,12 @@ async fn check(
             let (B, B_cpu) =
                 rand_quantized_gpu_buffer(handle.device(), (K, N), true, Quantization::SInt8);
             let b_dequant = sint8_dequantize(&B_cpu.unwrap(), ABSMAX, K, N);
+            (B, Some(b_dequant))
+        }
+        Quantization::SInt4 => {
+            let (B, B_cpu) =
+                rand_quantized_gpu_buffer(handle.device(), (K, N), true, Quantization::SInt4);
+            let b_dequant = sint4_dequantize(&B_cpu.unwrap(), ABSMAX, K, N);
             (B, Some(b_dequant))
         }
     };
@@ -105,6 +114,7 @@ async fn check(
         Quantization::None => 1e-5,
         Quantization::Float16 => 1e-3,
         Quantization::SInt8 => 1e-3,
+        Quantization::SInt4 => 1e-3,
     };
     if mae > acceptable_mae {
         panic!("MAE too high");
@@ -217,6 +227,9 @@ pub async fn test_harness(
         Quantization::None => rand_gpu_buffer::<f32>(handle.device(), (K, N), false, false).0,
         Quantization::SInt8 => {
             rand_quantized_gpu_buffer(handle.device(), (K, N), false, Quantization::SInt8).0
+        }
+        Quantization::SInt4 => {
+            rand_quantized_gpu_buffer(handle.device(), (K, N), false, Quantization::SInt4).0
         }
         Quantization::Float16 => {
             rand_quantized_gpu_buffer(handle.device(), (K, N), false, Quantization::Float16).0
