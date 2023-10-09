@@ -144,8 +144,9 @@ pub fn rand_quantized_gpu_buffer(
     let data = generate_weight_data::<f32>(M, N);
     let (quantized, _absmax) = match quantization {
         Quantization::SInt8 => sint8_quantize(&data, M, N),
+        Quantization::SInt4 => sint4_quantize(&data, M, N),
         Quantization::Float16 => (float16_quantize(&data, M, N), 0.0),
-        _ => unreachable!(),
+        _ => panic!("Quantization not supported"),
     };
     let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: None,
@@ -185,6 +186,7 @@ mod tests {
         ];
         let (quantized_matrix, absmax) = super::sint4_quantize(&matrix, 4, 4);
         assert_eq!(quantized_matrix.len(), 2);
+        assert_eq!(quantized_matrix, vec![2544292849, 2544292849]);
         let dequantized_matrix = super::sint4_dequantize(&quantized_matrix, absmax, 4, 4);
         for i in 0..matrix.len() {
             assert!((matrix[i] - dequantized_matrix[i]).abs() < 0.1);
