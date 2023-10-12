@@ -62,18 +62,6 @@ async fn check(
             (B, Some(b_dequant))
         }
     };
-    let bingoo = A_cpu.clone().unwrap();
-    let ringoo = B_cpu.clone().unwrap();
-    println!(
-        "A_cpu\n{:?}\n...\n{:?}",
-        &bingoo[0..32],
-        &bingoo[M * N - 32..]
-    );
-    println!(
-        "B_cpu\n{:?}\n...\n{:?}",
-        &ringoo[0..32],
-        &ringoo[M * N - 32..]
-    );
 
     let (C, C_cpu) = empty_buffer::<f32>(handle.device(), (M, N), true);
     let mut C_cpu = C_cpu.unwrap();
