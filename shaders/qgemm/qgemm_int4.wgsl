@@ -34,7 +34,7 @@ fn main(
     let ND8 = N / 8u;
     let KD4 = K / 4u;
     let cRow = global_id.x;
-    let cCol = global_id.y * 2u; //2cols per thread 
+    let cCol = global_id.y; 
     if (cRow < M && cCol < ND4) {
         var tmp0 = vec4<f32>(0.0);
         var tmp1 = vec4<f32>(0.0);
@@ -56,11 +56,10 @@ fn main(
           tmp1 += vec4<f32>(a.y) * b1[1];
           tmp1 += vec4<f32>(a.z) * b2[1];
           tmp1 += vec4<f32>(a.w) * b3[1];
-
         }
-        //C[cRow * ND4 + cCol] = unpack8x4snorm(B[0], {{ scale }}f)[0]; 
-        //C[cRow * ND4 + cCol + 1u] =  unpack8x4snorm(B[0], {{ scale }}f)[1];
-        C[cRow * ND4 + cCol] = tmp0; 
-        C[cRow * ND4 + cCol + 1u] = tmp1; 
+        
+        let cIdx = cRow * ND4 + cCol * 2u;
+        C[cIdx] = tmp0; 
+        C[cIdx + 1u] = tmp1; 
     }
 }
