@@ -8,16 +8,17 @@ var<storage, read> B: array<u32>;
 var<storage, read_write> C: array<vec4<f32>>;
 
 fn unpack8x4snorm(value: u32, absmax: f32) -> array<vec4<f32>, 2> {
-    let x = f32((value << 28u) >> 28u);
-    let y = f32((value << 24u) >> 28u);
-    let z = f32((value << 20u) >> 28u);
-    let w = f32((value << 16u) >> 28u);
+    let bingo = i32(value);
+    let x = f32((bingo << 28u) >> 28u);
+    let y = f32((bingo << 24u) >> 28u);
+    let z = f32((bingo << 20u) >> 28u);
+    let w = f32((bingo << 16u) >> 28u);
     let c1 = vec4<f32>(x, y, z, w) / 7.0 * absmax;
 
-    let a = f32((value << 12u) >> 28u);
-    let b = f32((value << 8u) >> 28u);
-    let c = f32((value << 4u) >> 28u);
-    let d = f32((value >> 28u));
+    let a = f32((bingo << 12u) >> 28u);
+    let b = f32((bingo << 8u) >> 28u);
+    let c = f32((bingo << 4u) >> 28u);
+    let d = f32((bingo >> 28u));
     let c2 = vec4<f32>(a, b, c, d) / 7.0 * absmax;
     return array<vec4<f32>, 2>(c1, c2);
 }
@@ -29,15 +30,16 @@ fn main(
     let M = {{ M }}u;
     let N = {{ N }}u;
     let K = {{ K }}u;
+    let ND4 = N / 4u;
     let ND8 = N / 8u;
-    let KD8 = K / 8u;
+    let KD4 = K / 4u;
     let cRow = global_id.x;
-    let cCol = global_id.y * 2u; 
-    if (cRow < M && cCol < ND8) {
+    let cCol = global_id.y * 2u; //2cols per thread 
+    if (cRow < M && cCol < ND4) {
         var tmp0 = vec4<f32>(0.0);
         var tmp1 = vec4<f32>(0.0);
-        for (var k = 0u; k < KD8; k++) {
-          let a = A[cRow * KD8 + k];
+        for (var k = 0u; k < KD4; k++) {
+          let a = A[cRow * KD4 + k];
           
           let bidx = (k * ND8 * 4u) + cCol;
           let b0 = unpack8x4snorm(B[bidx], {{ scale }}f);
@@ -56,7 +58,9 @@ fn main(
           tmp1 += vec4<f32>(a.w) * b3[1];
 
         }
-        C[cRow * ND8 + cCol] = tmp0;
-        C[cRow * ND8 + cCol + 1u] = tmp1;
+        //C[cRow * ND4 + cCol] = unpack8x4snorm(B[0], {{ scale }}f)[0]; 
+        //C[cRow * ND4 + cCol + 1u] =  unpack8x4snorm(B[0], {{ scale }}f)[1];
+        C[cRow * ND4 + cCol] = tmp0; 
+        C[cRow * ND4 + cCol + 1u] = tmp1; 
     }
 }

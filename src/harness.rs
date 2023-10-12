@@ -62,6 +62,7 @@ async fn check(
             (B, Some(b_dequant))
         }
     };
+    println!("B_cpu: {:?}", &B_cpu.clone().unwrap()[0..32]);
 
     let (C, C_cpu) = empty_buffer::<f32>(handle.device(), (M, N), true);
     let mut C_cpu = C_cpu.unwrap();
