@@ -65,6 +65,53 @@ pub fn hgemm_1v(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
     (workload, shader)
 }
 
+pub fn hgemm_tiled(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
+    tera.add_raw_template(
+        "hgemm_tiled.wgsl",
+        include_str!("../shaders/hgemm/hgemm_tiled.wgsl"),
+    )
+    .unwrap();
+
+    let TILE_DIM = 32;
+    let ROW_PER_THREAD = 4;
+    let workgroup_size = WorkgroupSize((TILE_DIM / 4) as _, (TILE_DIM / ROW_PER_THREAD) as _, 1);
+    let group_x = Workload::ceil(N, TILE_DIM);
+    let group_y = Workload::ceil(M, TILE_DIM);
+
+    let workgroup_count = WorkgroupCount(group_x as _, group_y as _, 1);
+    let workload = Workload::new(workgroup_count, workgroup_size);
+
+    let aShape = vec![1, M, K];
+    let aShapeStrides = vec![M * K, M];
+    let bShape = vec![1, K, N];
+    let bShapeStrides = vec![K * N, N];
+    let outShape = vec![1, M, N];
+    let outShapeStrides = vec![M * N, M];
+    let dimAOuter = M;
+    let dimBOuter = N;
+    let dimInner = K;
+
+    context.insert("TILE_DIM", &TILE_DIM);
+    context.insert("ROW_PER_THREAD", &ROW_PER_THREAD);
+    context.insert("aShape", &aShape);
+    context.insert("aShapeStrides", &aShapeStrides);
+    context.insert("bShape", &bShape);
+    context.insert("bShapeStrides", &bShapeStrides);
+    context.insert("outShape", &outShape);
+    context.insert("outShapeStrides", &outShapeStrides);
+    context.insert("dimAOuter", &dimAOuter);
+    context.insert("dimBOuter", &dimBOuter);
+    context.insert("dimInner", &dimInner);
+
+    context.insert("workgroup_size_x", &workload.size().0);
+    context.insert("workgroup_size_y", &workload.size().1);
+    context.insert("workgroup_size_z", &workload.size().2);
+
+    let shader = tera.render("hgemm_tiled.wgsl", context).unwrap();
+    println!("shader: {}", shader);
+    (workload, shader)
+}
+
 #[cfg(test)]
 mod tests {
     use crate::quant::Quantization;
@@ -86,6 +133,6 @@ mod tests {
         };
     }
 
-    //hgemm_test!(test_hgemm_1, hgemm_1);
     hgemm_test!(test_hgemm_1v, hgemm_1v);
+    hgemm_test!(test_hgemm_tiled, hgemm_tiled);
 }
