@@ -20,7 +20,7 @@ fn getA(d0 : i32, d1 : i32, d2 : i32) -> vec4<f32> {
 }
    
 fn getB(d0 : i32, d1 : i32, d2 : i32) -> vec4<f32> {
-    return vec4<f32>(B[getIndexFromCoords3D(vec3<i32>(d0,d1,d2), vec3<i32>({{ bShape.0 }}, {{ bShape.1 }} , {{ bShape.2 }})) / 4]);
+    return unpack4x8snorm(B[getIndexFromCoords3D(vec3<i32>(d0,d1,d2), vec3<i32>({{ bShape.0 }}, {{ bShape.1 }} , {{ bShape.2 }})) / 4]);
 }
    
 fn mm_readA(batch: i32, row: i32, col: i32) -> vec4<f32> {
@@ -49,7 +49,7 @@ var<private> workgroupId: vec3<u32>;
 
 @group(0) @binding(0) var<storage, read> A: array<vec4<f32>>;
 
-@group(0) @binding(1) var<storage, read> B: array<vec4<f32>>;
+@group(0) @binding(1) var<storage, read> B: array<u32>;
 
 @group(0) @binding(2) var<storage, read_write> result: array<vec4<f32>>;
 
@@ -90,7 +90,7 @@ fn main(@builtin(local_invocation_id) localId : vec3<u32>,
         for (var innerRow = 0; innerRow < {{ ROW_PER_THREAD }}; innerRow++) {
             let inputRow = tileRowB + innerRow;
             let inputCol = tileCol;
-            mm_Bsub[inputRow][inputCol] = mm_readB(batchB, kStart + inputRow, globalCol);
+            mm_Bsub[inputRow][inputCol] = mm_readB(batchB, kStart + inputRow, globalCol) * {{scale}}f;
         }
         kStart = kStart + {{ TILE_DIM }};
         workgroupBarrier();

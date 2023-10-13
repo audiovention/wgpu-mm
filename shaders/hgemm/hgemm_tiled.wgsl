@@ -20,7 +20,7 @@ fn getA(d0 : i32, d1 : i32, d2 : i32) -> vec4<f32> {
 }
    
 fn getB(d0 : i32, d1 : i32, d2 : i32) -> vec4<f32> {
-    return vec4<f32>(B[getIndexFromCoords3D(vec3<i32>(d0,d1,d2), vec3<i32>({{ bShape.0 }}, {{ bShape.1 }} , {{ bShape.2 }})) / 4]);
+    return unpack4x16float(B[getIndexFromCoords3D(vec3<i32>(d0,d1,d2), vec3<i32>({{ bShape.0 }}, {{ bShape.1 }} , {{ bShape.2 }})) / 4]);
 }
    
 fn mm_readA(batch: i32, row: i32, col: i32) -> vec4<f32> {
@@ -40,6 +40,12 @@ fn mm_write(batch: i32, row: i32, col: i32, valueIn: vec4<f32>) {
     let coords = vec3<i32>(batch, row, col);
     setOutputAtCoords(coords[0], coords[1], coords[2], value);
 }
+
+fn unpack4x16float(x: vec2<u32>) -> vec4<f32> {
+  let x0 = unpack2x16float(x.x);
+  let x1 = unpack2x16float(x.y);
+  return vec4<f32>(x0.x, x0.y, x1.x, x1.y);
+}
       
 var<private> localId: vec3<u32>;
 var<private> localIndex: u32;
@@ -49,7 +55,8 @@ var<private> workgroupId: vec3<u32>;
 
 @group(0) @binding(0) var<storage, read> A: array<vec4<f32>>;
 
-@group(0) @binding(1) var<storage, read> B: array<vec4<f32>>;
+//Currently using vec2<u32>, but could use vec4<u32> (8 elems per load).
+@group(0) @binding(1) var<storage, read> B: array<vec2<u32>>;
 
 @group(0) @binding(2) var<storage, read_write> result: array<vec4<f32>>;
 
