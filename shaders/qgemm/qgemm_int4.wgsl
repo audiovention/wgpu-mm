@@ -8,18 +8,9 @@ var<storage, read> B: array<u32>;
 var<storage, read_write> C: array<vec4<f32>>;
 
 fn unpack8x4snorm(value: u32, absmax: f32) -> array<vec4<f32>, 2> {
-    let bingo = i32(value);
-    let x = f32((bingo << 28u) >> 28u);
-    let y = f32((bingo << 24u) >> 28u);
-    let z = f32((bingo << 20u) >> 28u);
-    let w = f32((bingo << 16u) >> 28u);
-    let c1 = vec4<f32>(x, y, z, w) / 7.0 * absmax;
-
-    let a = f32((bingo << 12u) >> 28u);
-    let b = f32((bingo << 8u) >> 28u);
-    let c = f32((bingo << 4u) >> 28u);
-    let d = f32((bingo >> 28u));
-    let c2 = vec4<f32>(a, b, c, d) / 7.0 * absmax;
+    let casted = vec4<i32>(i32(value));
+    let c1 = vec4<f32>(casted << vec4<u32>(28u, 24u, 20u, 16u) >> vec4<u32>(28u)) / 7.0 * absmax;
+    let c2 = vec4<f32>(casted << vec4<u32>(12u, 8u, 4u, 0u) >> vec4<u32>(28u)) / 7.0 * absmax;
     return array<vec4<f32>, 2>(c1, c2);
 }
 
