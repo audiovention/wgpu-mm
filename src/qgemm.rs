@@ -14,7 +14,7 @@ pub fn insert_matrix_dims(context: &mut Context) -> (usize, usize, usize) {
     (M, N, K)
 }
 
-pub fn qgemm_int8(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
+pub fn qgemm_int8_naive(tera: &mut Tera, context: &mut Context) -> (Workload, String) {
     tera.add_raw_template(
         "qgemm_int8.wgsl",
         include_str!("../shaders/qgemm/qgemm_int8.wgsl"),
@@ -137,7 +137,7 @@ mod tests {
         };
     }
 
-    qgemm_test!(test_qgemm_int8, qgemm_int8, Quantization::SInt8);
+    qgemm_test!(test_qgemm_int8_naive, qgemm_int8_naive, Quantization::SInt8);
     qgemm_test!(test_qgemm_int8_tiled, qgemm_int8_tiled, Quantization::SInt8);
     qgemm_test!(test_qgemm_int4, qgemm_int4, Quantization::SInt4);
 }
